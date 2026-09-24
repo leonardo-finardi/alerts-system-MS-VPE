@@ -847,16 +847,36 @@
       return /Android/i.test(navigator.userAgent);
     }
 
+    function somarMinutosNaData(isoData, hm, minutos) {
+      const p = isoData.split('-').map(Number);
+      const d = new Date(p[0], p[1] - 1, p[2], parseInt(hm[0], 10), parseInt(hm[1], 10), 0);
+      d.setMinutes(d.getMinutes() + minutos);
+      const pad = function (n) { return String(n).padStart(2, '0'); };
+      return pad(d.getFullYear()) + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+        'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00';
+    }
+
     function dadosEventoOutlook(l) {
       const p = l.data.split('-');
-      let hora = l.hora || '09:00';
+      const hora = l.hora || '09:00';
       const hm = hora.split(':');
-      const fimH = Math.min(23, parseInt(hm[0], 10) + 1);
+      const inicio = p[0] + '-' + p[1] + '-' + p[2] + 'T' + hm[0] + ':' + hm[1] + ':00';
       return {
         titulo: l.tarefa,
-        inicio: p[0] + '-' + p[1] + '-' + p[2] + 'T' + hm[0] + ':' + hm[1] + ':00',
-        fim: p[0] + '-' + p[1] + '-' + p[2] + 'T' + String(fimH).padStart(2, '0') + ':' + hm[1] + ':00'
+        inicio: inicio,
+        fim: somarMinutosNaData(l.data, hm, 15)
       };
+    }
+
+    function instanteDoLembrete(l) {
+      const p = l.data.split('-').map(Number);
+      const hm = (l.hora || '09:00').split(':');
+      return new Date(p[0], p[1] - 1, p[2], parseInt(hm[0], 10), parseInt(hm[1], 10), 0);
+    }
+
+    function lembreteEhFuturo(l) {
+      if (!l || !l.data) return false;
+      return instanteDoLembrete(l).getTime() > agoraNoFuso().getTime();
     }
 
     /** Deep link do app Outlook (mobile). Se não houver app, a página permanece aqui. */
@@ -931,17 +951,13 @@
     }
 
     function listarProximosLembretes() {
-      const hoje = hojeISO();
       return carregarTodosLembretes()
-        .filter(function (l) { return l.data && l.data >= hoje; })
+        .filter(lembreteEhFuturo)
         .sort(function (a, b) {
-          if (a.data !== b.data) return a.data.localeCompare(b.data);
-          return (a.hora || '99:99').localeCompare(b.hora || '99:99');
+          const ta = instanteDoLembrete(a).getTime();
+          const tb = instanteDoLembrete(b).getTime();
+          return ta - tb;
         });
-    }
-
-    function hojeISO() {
-      return dataISO(agoraNoFuso());
     }
 
     function excluirLembrete(id) {
