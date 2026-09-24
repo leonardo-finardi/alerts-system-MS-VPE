@@ -799,7 +799,7 @@
         return s;
       });
       return 'Anotado! ✅ ' + partes.join('; e de ') +
-        '. Agora vou abrir o calendário — toque em Salvar na próxima tela.';
+        '. Vou tentar abrir o Outlook no celular — toque em Salvar no evento.';
     }
 
     function interpretarLocal(texto) {
@@ -843,23 +843,83 @@
       }
     }
 
-    function urlCalendarioGoogle(l) {
-      const p = l.data.split('-');
-      const titulo = encodeURIComponent(l.tarefa);
-      const detalhe = encodeURIComponent('Lembrete — Meus Lembretes');
-      let hora = l.hora;
-      if (!hora) hora = '09:00';
-      const hm = hora.split(':');
-      const ini = p[0] + p[1] + p[2] + 'T' + hm[0] + hm[1] + '00';
-      const fimH = String(Math.min(23, parseInt(hm[0], 10) + 1)).padStart(2, '0');
-      const fim = p[0] + p[1] + p[2] + 'T' + fimH + hm[1] + '00';
-      return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + titulo +
-        '&dates=' + ini + '/' + fim + '&details=' + detalhe + '&ctz=America%2FSao_Paulo';
+    function ehAndroid() {
+      return /Android/i.test(navigator.userAgent);
     }
 
-    function abrirCalendario(lembretes) {
+    function dadosEventoOutlook(l) {
+      const p = l.data.split('-');
+      let hora = l.hora || '09:00';
+      const hm = hora.split(':');
+      const fimH = Math.min(23, parseInt(hm[0], 10) + 1);
+      return {
+        titulo: l.tarefa,
+        inicio: p[0] + '-' + p[1] + '-' + p[2] + 'T' + hm[0] + ':' + hm[1] + ':00',
+        fim: p[0] + '-' + p[1] + '-' + p[2] + 'T' + String(fimH).padStart(2, '0') + ':' + hm[1] + ':00'
+      };
+    }
+
+    /** Deep link do app Outlook (mobile). Se não houver app, a página permanece aqui. */
+    function urlOutlookApp(l) {
+      const ev = dadosEventoOutlook(l);
+      return 'ms-outlook://events/new?title=' + encodeURIComponent(ev.titulo) +
+        '&start=' + encodeURIComponent(ev.inicio) +
+        '&end=' + encodeURIComponent(ev.fim);
+    }
+
+    function urlOutlookAndroidIntent(l) {
+      const ev = dadosEventoOutlook(l);
+      const path = 'events/new?title=' + encodeURIComponent(ev.titulo) +
+        '&start=' + encodeURIComponent(ev.inicio) +
+        '&end=' + encodeURIComponent(ev.fim);
+      return 'intent://' + path +
+        '#Intent;scheme=ms-outlook;package=com.microsoft.office.outlook;end';
+    }
+
+    function avisoOutlookNaoAbriu() {
+      if (estadoAtual !== ESTADO.SUCESSO) return;
+      if (document.getElementById('avisoOutlook')) return;
+      const p = document.createElement('p');
+      p.id = 'avisoOutlook';
+      p.className = 'mensagem-ouvi';
+      p.textContent = 'O Outlook não abriu neste aparelho. O lembrete ficou salvo — veja em “Ver próximos lembretes”.';
+      el.areaMensagem.appendChild(p);
+    }
+
+    function tentarAbrirOutlookMobile(lembretes) {
       if (!lembretes || !lembretes.length) return;
-      window.location.assign(urlCalendarioGoogle(lembretes[0]));
+
+      const l = lembretes[0];
+      const url = ehAndroid() ? urlOutlookAndroidIntent(l) : urlOutlookApp(l);
+      let appAbriu = false;
+
+      function marcarAbriu() {
+        if (document.hidden) appAbriu = true;
+      }
+
+      function marcarAbriuPagina() {
+        appAbriu = true;
+      }
+
+      document.addEventListener('visibilitychange', marcarAbriu);
+      window.addEventListener('pagehide', marcarAbriuPagina);
+      window.addEventListener('blur', marcarAbriuPagina);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      window.setTimeout(function () {
+        document.removeEventListener('visibilitychange', marcarAbriu);
+        window.removeEventListener('pagehide', marcarAbriuPagina);
+        window.removeEventListener('blur', marcarAbriuPagina);
+        if (!appAbriu && !document.hidden) {
+          avisoOutlookNaoAbriu();
+        }
+      }, 2200);
     }
 
     function carregarTodosLembretes() {
@@ -936,7 +996,7 @@
               lembretes: r.lembretes
             });
             window.setTimeout(function () {
-              abrirCalendario(r.lembretes);
+              tentarAbrirOutlookMobile(r.lembretes);
             }, 900);
           } else {
             renderizarEstado(ESTADO.ERRO_BACKEND, { mensagem: r.mensagem, texto: r.texto || '' });
@@ -1319,9 +1379,9 @@
             const btnCal = document.createElement('button');
             btnCal.type = 'button';
             btnCal.className = 'btn-secundario';
-            btnCal.textContent = 'Abrir calendário de novo';
+            btnCal.textContent = 'Abrir Outlook de novo';
             btnCal.addEventListener('click', function () {
-              abrirCalendario(dados.lembretes);
+              tentarAbrirOutlookMobile(dados.lembretes);
             });
             el.acoesSecundarias.appendChild(btnCal);
           }
@@ -1479,7 +1539,7 @@
       } else {
         if (!apiAtiva()) {
           el.instrucao.textContent =
-            'Fale o lembrete e o dia. Exemplo: “Me lembra de tomar o remédio amanhã”. O calendário abre sozinho para você salvar.';
+            'Fale o lembrete e o dia. Exemplo: “Me lembra de tomar o remédio amanhã”. Tentamos abrir o Outlook para salvar.';
         }
         renderizarEstado(ESTADO.PRONTO, {});
       }
