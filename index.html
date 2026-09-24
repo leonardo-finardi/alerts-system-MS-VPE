@@ -393,7 +393,27 @@
 
   <script src="config.js"></script>
   <script>
+    /*
+     * ARQUITETURA (padrão — tudo no navegador):
+     *   Voz (Web Speech API) → interpretar data/tarefa (JS) → salvar (localStorage)
+     *   → arquivo .ics → Calendário do celular manda o aviso.
+     *
+     * Opcional (futuro): preencha API_URL + TOKEN para um backend único
+     * (transcrição + IA + e-mail). Deixe API_URL vazio para não usar.
+     */
+    if (typeof CONFIG === 'undefined') {
+      var CONFIG = {
+        SENHA: 'COLOCAR_SENHA_AQUI',
+        API_URL: '',
+        TOKEN: '',
+        DURACAO_MAXIMA_SEG: 60,
+        DURACAO_MINIMA_SEG: 1
+      };
+    }
+
     const CHAVE_SESSAO = 'lembretes_auth_v1';
+    const CHAVE_LEMBRETES = 'meus_lembretes_v1';
+    const FUSO = 'America/Sao_Paulo';
 
     const MIME_PREFERENCIA = [
       'audio/webm;codecs=opus',
@@ -432,6 +452,9 @@
     let ultimaMensagemFala = '';
     let envioEmAndamento = false;
     let appIniciado = false;
+    let reconhecimento = null;
+    let textoFalaPartes = [];
+    let modoGravacaoLocal = false;
 
     const el = {
       telaSenha: document.getElementById('telaSenha'),
@@ -631,7 +654,250 @@
       window.speechSynthesis.onvoiceschanged = function () {};
     }
 
+    function cfg(nome, padrao) {
+      if (typeof CONFIG === 'undefined' || CONFIG[nome] === undefined || CONFIG[nome] === null) {
+        return padrao;
+      }
+      return CONFIG[nome];
+    }
+
+    function apiAtiva() {
+      const url = String(cfg('API_URL', '') || '').trim();
+      return url.length > 0 && url !== 'DESATIVADO';
+    }
+
+    function reconhecimentoDisponivel() {
+      return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    }
+
+    function agoraNoFuso() {
+      return new Date(new Date().toLocaleString('en-US', { timeZone: FUSO }));
+    }
+
+    function dataISO(d) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const dia = String(d.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + dia;
+    }
+
+    function somarDias(d, n) {
+      const x = new Date(d.getTime());
+      x.setDate(x.getDate() + n);
+      return x;
+    }
+
+    function proximoDiaSemana(d, diaDom0) {
+      const x = new Date(d.getTime());
+      let diff = diaDom0 - x.getDay();
+      if (diff <= 0) diff += 7;
+      return somarDias(x, diff);
+    }
+
+    const MAPA_DIAS = [
+      ['domingo', 0], ['segunda', 1], ['terça', 2], ['terca', 2],
+      ['quarta', 3], ['quinta', 4], ['sexta', 5], ['sábado', 6], ['sabado', 6]
+    ];
+
+    const DIAS_EXT = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+    const MESES_EXT = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+    function extrairDataDoTexto(texto) {
+      const t = texto.toLowerCase();
+      const hoje = agoraNoFuso();
+      if (/\bhoje\b/.test(t)) return dataISO(hoje);
+      if (/\bamanh[ãa]\b/.test(t)) return dataISO(somarDias(hoje, 1));
+      if (/depois de amanh[ãa]/.test(t)) return dataISO(somarDias(hoje, 2));
+      let i;
+      for (i = 0; i < MAPA_DIAS.length; i++) {
+        if (t.indexOf(MAPA_DIAS[i][0]) >= 0) {
+          return dataISO(proximoDiaSemana(hoje, MAPA_DIAS[i][1]));
+        }
+      }
+      const diaMes = t.match(/\bdia\s+(\d{1,2})\b/);
+      if (diaMes) {
+        const diaNum = parseInt(diaMes[1], 10);
+        let cand = new Date(hoje.getFullYear(), hoje.getMonth(), diaNum, 12, 0, 0);
+        if (cand < hoje) cand = new Date(hoje.getFullYear(), hoje.getMonth() + 1, diaNum, 12, 0, 0);
+        return dataISO(cand);
+      }
+      return null;
+    }
+
+    function extrairHoraDoTexto(texto) {
+      const m = texto.match(/(?:às|as|a)\s*(\d{1,2})(?:(?:[:h]\s*(\d{2}))|(?:\s*(?:e|)\s*(?:meia|(\d{2}))\s*(?:minuto)?)?)?/i);
+      if (!m) return '';
+      let hh = parseInt(m[1], 10);
+      let mm = m[2] || m[3] || '00';
+      if (/meia/i.test(texto) && !m[2]) mm = '30';
+      if (hh > 23) return '';
+      return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+    }
+
+    function extrairTarefaDoTexto(texto) {
+      let s = String(texto).trim();
+      s = s.replace(/^(me\s+)?(lembra|lembrar)(me)?(\s+de)?\s*/i, '');
+      s = s.replace(/\s+(por favor\.?|t[aá]\.?|ok\.?)$/i, '');
+      return s.trim() || String(texto).trim();
+    }
+
+    function dataPorExtenso(iso) {
+      const p = iso.split('-').map(Number);
+      const dt = new Date(p[0], p[1] - 1, p[2], 12);
+      return DIAS_EXT[dt.getDay()] + ', ' + p[2] + ' de ' + MESES_EXT[p[1] - 1];
+    }
+
+    function montarMensagemOk(lembretes) {
+      const partes = lembretes.map(function (l) {
+        let s = l.tarefa.charAt(0).toLowerCase() + l.tarefa.slice(1);
+        s += ' na ' + dataPorExtenso(l.data);
+        if (l.hora) s += ', às ' + l.hora;
+        return s;
+      });
+      return 'Anotado! ✅ Vou te lembrar de ' + partes.join('; e de ') +
+        '. Toque em “Colocar no calendário” para o celular avisar na hora certa.';
+    }
+
+    function interpretarLocal(texto) {
+      const bruto = String(texto || '').trim();
+      if (!bruto) {
+        return { ok: false, mensagem: 'Não ouvi nada. Fale mais perto do celular e tente de novo.' };
+      }
+      const data = extrairDataDoTexto(bruto);
+      const tarefa = extrairTarefaDoTexto(bruto);
+      const hora = extrairHoraDoTexto(bruto);
+      if (!data) {
+        return {
+          ok: false,
+          texto: bruto,
+          mensagem: 'Entendi o lembrete, mas não entendi PARA QUANDO. Fale de novo com “amanhã”, “sexta” ou “dia 15”.'
+        };
+      }
+      const item = {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        tarefa: tarefa,
+        data: data,
+        hora: hora,
+        texto: bruto,
+        criadoEm: new Date().toISOString()
+      };
+      return { ok: true, texto: bruto, lembretes: [item], mensagem: montarMensagemOk([item]) };
+    }
+
+    function salvarLembretesLocal(lembretes) {
+      let lista = [];
+      try {
+        lista = JSON.parse(localStorage.getItem(CHAVE_LEMBRETES) || '[]');
+      } catch (_) {
+        lista = [];
+      }
+      lembretes.forEach(function (l) { lista.push(l); });
+      try {
+        localStorage.setItem(CHAVE_LEMBRETES, JSON.stringify(lista));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function escapeIcs(s) {
+      return String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+    }
+
+    function gerarArquivoIcs(lembretes) {
+      const linhas = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//Meus Lembretes//PT',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH'
+      ];
+      lembretes.forEach(function (l) {
+        const p = l.data.split('-');
+        linhas.push('BEGIN:VEVENT');
+        linhas.push('UID:' + l.id + '@meus-lembretes');
+        if (l.hora) {
+          const hm = l.hora.split(':');
+          const inicio = p[0] + p[1] + p[2] + 'T' + hm[0] + hm[1] + '00';
+          linhas.push('DTSTART;TZID=' + FUSO + ':' + inicio);
+          const fimH = String((parseInt(hm[0], 10) + 1) % 24).padStart(2, '0');
+          linhas.push('DTEND;TZID=' + FUSO + ':' + p[0] + p[1] + p[2] + 'T' + fimH + hm[1] + '00');
+        } else {
+          linhas.push('DTSTART;VALUE=DATE:' + p[0] + p[1] + p[2]);
+          linhas.push('DTEND;VALUE=DATE:' + p[0] + p[1] + p[2]);
+        }
+        linhas.push('SUMMARY:' + escapeIcs(l.tarefa));
+        linhas.push('DESCRIPTION:' + escapeIcs('Lembrete criado por voz'));
+        linhas.push('BEGIN:VALARM');
+        linhas.push('TRIGGER:-PT15M');
+        linhas.push('ACTION:DISPLAY');
+        linhas.push('DESCRIPTION:Lembrete');
+        linhas.push('END:VALARM');
+        linhas.push('END:VEVENT');
+      });
+      linhas.push('END:VCALENDAR');
+      return linhas.join('\r\n');
+    }
+
+    function baixarIcs(lembretes) {
+      const conteudo = gerarArquivoIcs(lembretes);
+      const blob = new Blob([conteudo], { type: 'text/calendar;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'lembrete.ics';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+    }
+
+    function processarTextoLocal(texto) {
+      if (envioEmAndamento) return;
+      envioEmAndamento = true;
+      renderizarEstado(ESTADO.ENVIANDO, {});
+      window.setTimeout(function () {
+        try {
+          const r = interpretarLocal(texto);
+          envioEmAndamento = false;
+          if (r.ok) {
+            salvarLembretesLocal(r.lembretes);
+            renderizarEstado(ESTADO.SUCESSO, {
+              mensagem: r.mensagem,
+              texto: r.texto,
+              lembretes: r.lembretes
+            });
+          } else {
+            renderizarEstado(ESTADO.ERRO_BACKEND, { mensagem: r.mensagem, texto: r.texto || '' });
+          }
+        } catch (err) {
+          console.error(err);
+          envioEmAndamento = false;
+          renderizarEstado(ESTADO.ERRO_BACKEND, {
+            mensagem: 'Não consegui anotar. Tente falar de novo, bem devagar.'
+          });
+        }
+      }, 400);
+    }
+
+    function processarEntrada(texto) {
+      if (apiAtiva()) {
+        return enviar({ token: cfg('TOKEN', ''), texto: texto });
+      }
+      processarTextoLocal(texto);
+    }
+
+    function pararReconhecimento() {
+      if (reconhecimento) {
+        try { reconhecimento.stop(); } catch (_) { /* ignore */ }
+        reconhecimento = null;
+      }
+    }
+
     async function enviar(payload) {
+      if (!apiAtiva()) {
+        if (payload.texto) processarTextoLocal(payload.texto);
+        return;
+      }
       if (envioEmAndamento) return;
       envioEmAndamento = true;
       ultimoPayload = payload;
@@ -719,10 +985,17 @@
             const duracaoSeg = (Date.now() - inicioGravacaoMs) / 1000;
             pararStream();
 
-            if (duracaoSeg < CONFIG.DURACAO_MINIMA_SEG) {
-              renderizarEstado(ESTADO.PRONTO, {
-                avisoCurto: true
-              });
+            if (duracaoSeg < cfg('DURACAO_MINIMA_SEG', 1)) {
+              renderizarEstado(ESTADO.PRONTO, { avisoCurto: true });
+              return;
+            }
+
+            if (modoGravacaoLocal) {
+              modoGravacaoLocal = false;
+              pararReconhecimento();
+              const texto = textoFalaPartes.join(' ').trim();
+              textoFalaPartes = [];
+              processarTextoLocal(texto);
               return;
             }
 
@@ -759,11 +1032,118 @@
 
           timerMaximo = setTimeout(function () {
             pararGravacao();
-          }, CONFIG.DURACAO_MAXIMA_SEG * 1000);
+          }, cfg('DURACAO_MAXIMA_SEG', 60) * 1000);
         })
         .catch(function (err) {
           console.error(err);
           pararStream();
+          pararReconhecimento();
+          if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            renderizarEstado(ESTADO.MICROFONE_NEGADO, {});
+          } else {
+            renderizarEstado(ESTADO.PRONTO, {
+              aviso: 'Não consegui usar o microfone. Toque para tentar de novo.'
+            });
+          }
+        });
+    }
+
+    function iniciarGravacaoLocal() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        renderizarEstado(ESTADO.SEM_SUPORTE, {});
+        return;
+      }
+
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function (stream) {
+          mediaStream = stream;
+          chunks = [];
+          textoFalaPartes = [];
+          modoGravacaoLocal = true;
+
+          const mimeEscolhido = escolherMimeType();
+          try {
+            mediaRecorder = mimeEscolhido
+              ? new MediaRecorder(stream, { mimeType: mimeEscolhido })
+              : new MediaRecorder(stream);
+          } catch (e) {
+            mediaRecorder = null;
+          }
+          mimeTypeGravacao = (mediaRecorder && mediaRecorder.mimeType) || mimeEscolhido || 'audio/webm';
+
+          if (mediaRecorder) {
+            mediaRecorder.ondataavailable = function () { /* só cronômetro / duração mínima */ };
+            mediaRecorder.onstop = function () {
+              limparTimersGravacao();
+              const duracaoSeg = (Date.now() - inicioGravacaoMs) / 1000;
+              pararStream();
+              if (duracaoSeg < cfg('DURACAO_MINIMA_SEG', 1)) {
+                modoGravacaoLocal = false;
+                pararReconhecimento();
+                textoFalaPartes = [];
+                renderizarEstado(ESTADO.PRONTO, { avisoCurto: true });
+                return;
+              }
+              modoGravacaoLocal = false;
+              pararReconhecimento();
+              const texto = textoFalaPartes.join(' ').trim();
+              textoFalaPartes = [];
+              processarTextoLocal(texto);
+            };
+            mediaRecorder.onerror = function () {
+              limparTimersGravacao();
+              pararStream();
+              pararReconhecimento();
+              modoGravacaoLocal = false;
+              renderizarEstado(ESTADO.PRONTO, { aviso: 'Algo deu errado na gravação. Toque para tentar de novo.' });
+            };
+          }
+
+          reconhecimento = new SpeechRecognition();
+          reconhecimento.lang = 'pt-BR';
+          reconhecimento.continuous = true;
+          reconhecimento.interimResults = true;
+          reconhecimento.onresult = function (ev) {
+            for (let i = ev.resultIndex; i < ev.results.length; i++) {
+              if (ev.results[i].isFinal) {
+                textoFalaPartes.push(ev.results[i][0].transcript);
+              }
+            }
+          };
+          reconhecimento.onerror = function (ev) {
+            console.error(ev.error || ev);
+          };
+
+          inicioGravacaoMs = Date.now();
+          try {
+            reconhecimento.start();
+          } catch (err) {
+            console.error(err);
+          }
+          if (mediaRecorder) {
+            try { mediaRecorder.start(250); } catch (_) { /* ignore */ }
+          }
+
+          if (navigator.vibrate) {
+            try { navigator.vibrate(80); } catch (_) { /* ignore */ }
+          }
+
+          renderizarEstado(ESTADO.GRAVANDO, {});
+
+          timerInterval = setInterval(function () {
+            const seg = (Date.now() - inicioGravacaoMs) / 1000;
+            el.cronometro.textContent = formatarTempo(seg);
+          }, 200);
+
+          timerMaximo = setTimeout(function () {
+            pararGravacao();
+          }, cfg('DURACAO_MAXIMA_SEG', 60) * 1000);
+        })
+        .catch(function (err) {
+          console.error(err);
+          pararStream();
+          pararReconhecimento();
           if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
             renderizarEstado(ESTADO.MICROFONE_NEGADO, {});
           } else {
@@ -775,6 +1155,30 @@
     }
 
     function pararGravacao() {
+      if (modoGravacaoLocal) {
+        pararReconhecimento();
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+          try { mediaRecorder.stop(); } catch (e) {
+            console.error(e);
+            limparTimersGravacao();
+            pararStream();
+            modoGravacaoLocal = false;
+            const texto = textoFalaPartes.join(' ').trim();
+            textoFalaPartes = [];
+            if (texto) processarTextoLocal(texto);
+            else renderizarEstado(ESTADO.PRONTO, {});
+          }
+        } else {
+          limparTimersGravacao();
+          pararStream();
+          modoGravacaoLocal = false;
+          const texto = textoFalaPartes.join(' ').trim();
+          textoFalaPartes = [];
+          if (texto) processarTextoLocal(texto);
+          else renderizarEstado(ESTADO.PRONTO, { aviso: 'Não ouvi nada. Tente falar de novo.' });
+        }
+        return;
+      }
       if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         try {
           mediaRecorder.stop();
@@ -836,8 +1240,8 @@
           el.btnPrincipal.disabled = true;
           el.btnPrincipal.classList.add('btn-principal--enviando');
           el.spinner.classList.remove('oculto');
-          el.textoBtn.textContent = 'Anotando seu lembrete…';
-          el.btnPrincipal.setAttribute('aria-label', 'Enviando lembrete');
+          el.textoBtn.textContent = apiAtiva() ? 'Anotando seu lembrete…' : 'Entendendo o que você falou…';
+          el.btnPrincipal.setAttribute('aria-label', 'Processando lembrete');
           timerMensagemEnviando = setTimeout(function () {
             if (estadoAtual === ESTADO.ENVIANDO) {
               el.textoBtn.textContent = 'Só mais um pouquinho…';
@@ -881,6 +1285,17 @@
 
           el.acoesSecundarias.appendChild(btnOutro);
           el.acoesSecundarias.appendChild(btnOuvir);
+
+          if (dados.lembretes && dados.lembretes.length) {
+            const btnCal = document.createElement('button');
+            btnCal.type = 'button';
+            btnCal.className = 'btn-secundario';
+            btnCal.textContent = '📅 Colocar no calendário';
+            btnCal.addEventListener('click', function () {
+              baixarIcs(dados.lembretes);
+            });
+            el.acoesSecundarias.appendChild(btnCal);
+          }
           break;
         }
 
@@ -978,6 +1393,14 @@
       if (estadoAtual === ESTADO.ENVIANDO) return;
 
       if (estadoAtual === ESTADO.PRONTO) {
+        if (!apiAtiva()) {
+          if (!reconhecimentoDisponivel()) {
+            renderizarEstado(ESTADO.SEM_SUPORTE, {});
+            return;
+          }
+          iniciarGravacaoLocal();
+          return;
+        }
         if (!navegadorSuportaGravacao()) {
           renderizarEstado(ESTADO.SEM_SUPORTE, {});
           return;
@@ -1006,11 +1429,17 @@
               '<p class="mensagem-principal">Digite uma frase de lembrete no campo acima.</p>';
             return;
           }
-          enviar({ token: CONFIG.TOKEN, texto: texto });
+          processarEntrada(texto);
         });
-      } else if (!navegadorSuportaGravacao()) {
+      } else if (!apiAtiva() && !reconhecimentoDisponivel()) {
+        renderizarEstado(ESTADO.SEM_SUPORTE, {});
+      } else if (apiAtiva() && !navegadorSuportaGravacao()) {
         renderizarEstado(ESTADO.SEM_SUPORTE, {});
       } else {
+        if (!apiAtiva()) {
+          el.instrucao.textContent =
+            'Fale o lembrete e o dia. Exemplo: “Me lembra de tomar o remédio amanhã”. Depois coloque no calendário do celular.';
+        }
         renderizarEstado(ESTADO.PRONTO, {});
       }
     }
