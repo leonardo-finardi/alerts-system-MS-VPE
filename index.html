@@ -746,43 +746,153 @@
     const DIAS_EXT = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
     const MESES_EXT = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 
+    const REGEX_MES = 'janeiro|jan|fevereiro|fev|marco|mar|abril|abr|maio|mai|junho|jun|julho|jul|agosto|ago|setembro|set|outubro|out|novembro|nov|dezembro|dez';
+
+    function normalizarParaBusca(texto) {
+      return String(texto)
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function numeroDoMes(nome) {
+      const mapa = {
+        janeiro: 1, jan: 1, fevereiro: 2, fev: 2, marco: 3, mar: 3, abril: 4, abr: 4,
+        maio: 5, mai: 5, junho: 6, jun: 6, julho: 7, jul: 7, agosto: 8, ago: 8,
+        setembro: 9, set: 9, outubro: 10, out: 10, novembro: 11, nov: 11, dezembro: 12, dez: 12
+      };
+      return mapa[nome] || null;
+    }
+
+    function inicioDoDia(d) {
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+    }
+
+    function dataComDiaEMes(dia, mesNum, hoje) {
+      let ano = hoje.getFullYear();
+      let cand = new Date(ano, mesNum - 1, dia, 12, 0, 0);
+      if (cand < inicioDoDia(hoje)) {
+        ano += 1;
+        cand = new Date(ano, mesNum - 1, dia, 12, 0, 0);
+      }
+      return dataISO(cand);
+    }
+
+    function pareceAmanha(t) {
+      if (/\bdepois de amanha\b/.test(t)) return false;
+      if (/\b(amanha|para amanha|pra amanha|amanha de manha|amanha de tarde)\b/.test(t)) return true;
+      // STT às vezes transcreve "amanhã meio-dia" como "a manha meio dia"
+      if (/\bmeio[\s-]?dia\b/.test(t) && /\b(a manha|na manha)\b/.test(t) && !/\bhoje\b/.test(t)) return true;
+      return false;
+    }
+
     function extrairDataDoTexto(texto) {
-      const t = texto.toLowerCase();
+      const t = normalizarParaBusca(texto);
       const hoje = agoraNoFuso();
+
+      // "12 de novembro", "dia 12 de novembro", "no dia 12 de outubro"
+      const comMes = t.match(new RegExp('(?:no\\s+)?(?:dia\\s+)?(\\d{1,2})\\s+de\\s+(' + REGEX_MES + ')\\b'));
+      if (comMes) {
+        const dia = parseInt(comMes[1], 10);
+        const mes = numeroDoMes(comMes[2]);
+        if (mes && dia >= 1 && dia <= 31) return dataComDiaEMes(dia, mes, hoje);
+      }
+
       if (/\bhoje\b/.test(t)) return dataISO(hoje);
-      if (/\bamanh[ãa]\b/.test(t)) return dataISO(somarDias(hoje, 1));
-      if (/depois de amanh[ãa]/.test(t)) return dataISO(somarDias(hoje, 2));
+      if (/\bdepois de amanha\b/.test(t)) return dataISO(somarDias(hoje, 2));
+      if (pareceAmanha(t)) return dataISO(somarDias(hoje, 1));
+
       let i;
       for (i = 0; i < MAPA_DIAS.length; i++) {
-        if (t.indexOf(MAPA_DIAS[i][0]) >= 0) {
+        const nome = MAPA_DIAS[i][0].normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (new RegExp('\\b' + nome + '\\b').test(t)) {
           return dataISO(proximoDiaSemana(hoje, MAPA_DIAS[i][1]));
         }
       }
-      const diaMes = t.match(/\bdia\s+(\d{1,2})\b/);
-      if (diaMes) {
-        const diaNum = parseInt(diaMes[1], 10);
-        let cand = new Date(hoje.getFullYear(), hoje.getMonth(), diaNum, 12, 0, 0);
-        if (cand < hoje) cand = new Date(hoje.getFullYear(), hoje.getMonth() + 1, diaNum, 12, 0, 0);
-        return dataISO(cand);
+
+      // "dia 15" sem mês: próximo dia 15 no calendário
+      const soDia = t.match(/\bdia\s+(\d{1,2})\b/);
+      if (soDia) {
+        const diaNum = parseInt(soDia[1], 10);
+        if (diaNum >= 1 && diaNum <= 31) {
+          let ano = hoje.getFullYear();
+          let mes = hoje.getMonth();
+          let cand = new Date(ano, mes, diaNum, 12, 0, 0);
+          if (cand < inicioDoDia(hoje)) {
+            mes += 1;
+            if (mes > 11) { mes = 0; ano += 1; }
+            cand = new Date(ano, mes, diaNum, 12, 0, 0);
+          }
+          return dataISO(cand);
+        }
       }
+
+      // "meio dia" / horário sem data → assume amanhã se parecer pedido de lembrete
+      if (/\bmeio[\s-]?dia\b/.test(t) && /\b(lembra|lembrar|lembrete)\b/.test(t)) {
+        return dataISO(somarDias(hoje, 1));
+      }
+
       return null;
     }
 
     function extrairHoraDoTexto(texto) {
-      const m = texto.match(/(?:às|as|a)\s*(\d{1,2})(?:(?:[:h]\s*(\d{2}))|(?:\s*(?:e|)\s*(?:meia|(\d{2}))\s*(?:minuto)?)?)?/i);
-      if (!m) return '';
-      let hh = parseInt(m[1], 10);
-      let mm = m[2] || m[3] || '00';
-      if (/meia/i.test(texto) && !m[2]) mm = '30';
-      if (hh > 23) return '';
-      return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+      const t = normalizarParaBusca(texto);
+
+      if (/\bmeio[\s-]?dia\b/.test(t)) return '12:00';
+      if (/\bmeia[\s-]?noite\b/.test(t)) return '00:00';
+
+      const mMeia = t.match(/\b(\d{1,2})\s*(?:e|:|\s)\s*meia\b/);
+      if (mMeia) {
+        const hh = parseInt(mMeia[1], 10);
+        if (hh >= 0 && hh <= 23) return String(hh).padStart(2, '0') + ':30';
+      }
+
+      const mHoras = t.match(/\b(?:as|a|para|pras|por volta(?: de)?)\s*(\d{1,2})\s*horas?\b/);
+      if (mHoras) {
+        const hh = parseInt(mHoras[1], 10);
+        if (hh >= 0 && hh <= 23) return String(hh).padStart(2, '0') + ':00';
+      }
+
+      const mH = t.match(/\b(\d{1,2})\s*h\b/);
+      if (mH) {
+        const hh = parseInt(mH[1], 10);
+        if (hh >= 0 && hh <= 23) return String(hh).padStart(2, '0') + ':00';
+      }
+
+      const m = t.match(/\b(?:as|a)\s*(\d{1,2})(?::(\d{2}))?\b/);
+      if (m) {
+        const hh = parseInt(m[1], 10);
+        const mm = m[2] || '00';
+        if (hh >= 0 && hh <= 23) return String(hh).padStart(2, '0') + ':' + mm;
+      }
+
+      const mNum = t.match(/\b(\d{1,2}):(\d{2})\b/);
+      if (mNum) {
+        const hh = parseInt(mNum[1], 10);
+        if (hh >= 0 && hh <= 23) return String(hh).padStart(2, '0') + ':' + mNum[2];
+      }
+
+      return '';
     }
 
     function extrairTarefaDoTexto(texto) {
       let s = String(texto).trim();
       s = s.replace(/^(me\s+)?(lembra|lembrar)(me)?(\s+de)?\s*/i, '');
+      s = s.replace(/^(para|pra)\s+/i, '');
       s = s.replace(/\s+(por favor\.?|t[aá]\.?|ok\.?)$/i, '');
-      return s.trim() || String(texto).trim();
+
+      const t = normalizarParaBusca(s);
+      s = s.replace(new RegExp('(?:no\\s+)?(?:dia\\s+)?\\d{1,2}\\s+de\\s+(' + REGEX_MES + ')', 'gi'), '');
+      s = s.replace(/\b(hoje|amanhã|amanha|depois de amanhã|depois de amanha)\b/gi, '');
+      s = s.replace(/\b(segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|domingo)(?:-feira)?\b/gi, '');
+      s = s.replace(/\b(?:as|a|para|pras)\s+\d{1,2}(?::\d{2})?\s*(?:horas?|h)?\b/gi, '');
+      s = s.replace(/\bmeio[\s-]?dia\b/gi, '');
+      s = s.replace(/\bmeia[\s-]?noite\b/gi, '');
+      s = s.replace(/\bdia\s+\d{1,2}\b/gi, '');
+      s = s.replace(/\s+/g, ' ').trim();
+      return s || String(texto).trim();
     }
 
     function dataPorExtenso(iso) {
