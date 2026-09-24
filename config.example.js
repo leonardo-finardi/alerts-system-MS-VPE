@@ -1,4 +1,4 @@
-const CONFIG = {
+window.APP_CONFIG = {
   SENHA: 'COLOCAR_SENHA_AQUI',
   API_URL: '',
   TOKEN: '',

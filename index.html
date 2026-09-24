@@ -352,7 +352,8 @@
     <h1 class="tela-senha__titulo" id="tituloSenha">Digite a senha para entrar</h1>
     <p class="erro-senha" id="erroSenha" aria-live="polite"></p>
     <p class="aviso-config oculto" id="avisoConfig"></p>
-    <form id="formSenha" class="tela-senha" style="width:100%;max-width:400px;gap:1rem;" autocomplete="off">
+    <form id="formSenha" class="tela-senha" style="width:100%;max-width:400px;gap:1rem;" autocomplete="on">
+      <input type="text" name="username" autocomplete="username" value="lembretes" class="oculto" tabindex="-1" aria-hidden="true">
       <input
         type="password"
         class="campo-senha"
@@ -398,18 +399,18 @@
      *   Voz (Web Speech API) → interpretar data/tarefa (JS) → salvar (localStorage)
      *   → arquivo .ics → Calendário do celular manda o aviso.
      *
-     * Opcional (futuro): preencha API_URL + TOKEN para um backend único
-     * (transcrição + IA + e-mail). Deixe API_URL vazio para não usar.
+     * Config: config.js define window.APP_CONFIG (gerado no deploy ou copie config.example.js).
      */
-    if (typeof CONFIG === 'undefined') {
-      var CONFIG = {
+    var CONFIG = Object.assign(
+      {
         SENHA: 'COLOCAR_SENHA_AQUI',
         API_URL: '',
         TOKEN: '',
         DURACAO_MAXIMA_SEG: 60,
         DURACAO_MINIMA_SEG: 1
-      };
-    }
+      },
+      window.APP_CONFIG || {}
+    );
 
     const CHAVE_SESSAO = 'lembretes_auth_v1';
     const CHAVE_LEMBRETES = 'meus_lembretes_v1';
@@ -477,9 +478,7 @@
     };
 
     function senhaConfigurada() {
-      return typeof CONFIG !== 'undefined' &&
-        CONFIG.SENHA &&
-        CONFIG.SENHA !== 'COLOCAR_SENHA_AQUI';
+      return !!(CONFIG.SENHA && CONFIG.SENHA !== 'COLOCAR_SENHA_AQUI');
     }
 
     function hashSenha(texto) {
@@ -532,11 +531,11 @@
     }
 
     function configurarPortaSenha() {
-      if (typeof CONFIG === 'undefined') {
+      if (!window.APP_CONFIG && !senhaConfigurada()) {
         el.formSenha.classList.add('oculto');
         el.avisoConfig.classList.remove('oculto');
         el.avisoConfig.textContent =
-          'Falta o arquivo de configuração. Copie config.example.js para config.js ou publique com GitHub Actions.';
+          'Falta config.js. Copie config.example.js para config.js ou publique com GitHub Actions (secret SENHA).';
         return;
       }
 
@@ -655,9 +654,7 @@
     }
 
     function cfg(nome, padrao) {
-      if (typeof CONFIG === 'undefined' || CONFIG[nome] === undefined || CONFIG[nome] === null) {
-        return padrao;
-      }
+      if (CONFIG[nome] === undefined || CONFIG[nome] === null) return padrao;
       return CONFIG[nome];
     }
 

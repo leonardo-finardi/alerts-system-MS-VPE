@@ -17,5 +17,5 @@ const CONFIG = {
   DURACAO_MINIMA_SEG: 1
 };
 
-fs.writeFileSync('config.js', 'const CONFIG = ' + JSON.stringify(CONFIG, null, 2) + ';\n');
+fs.writeFileSync('config.js', 'window.APP_CONFIG = ' + JSON.stringify(CONFIG, null, 2) + ';\n');
 console.log('config.js gerado (' + (CONFIG.API_URL ? 'com API' : 'modo local, sem API') + ').');
