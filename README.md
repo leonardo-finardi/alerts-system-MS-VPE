@@ -32,9 +32,13 @@ Os segredos **não** ficam no Git. Eles vão em `config.js`, que está no `.giti
    | `TOKEN`   | Token do backend                  |
    | `SENHA`   | Senha para abrir a página no celular |
 
-   Use exatamente esses nomes (maiúsculas). Se o deploy falhar com “Valores ausentes”, confira se não criou só na aba **Variables** — o workflow aceita Secrets ou Variables com os mesmos nomes.
+   Use exatamente esses nomes (maiúsculas).
 
-   O workflow `.github/workflows/pages.yml` gera `config.js` no deploy.
+   **Onde colocar:** pode ser **Repository secrets** ou **Environment secrets**. Se usar environment (como o `envs` do print), o nome tem que ser o mesmo do job `build` em `.github/workflows/pages.yml` (`environment: envs`). Secrets do `envs` **não** são visíveis no environment `github-pages` — por isso o workflow gera o `config.js` no job `build` e só publica no `deploy`.
+
+   Se o deploy falhar com “Valores ausentes”, confira o environment ou crie os três como **Repository secrets**.
+
+   O workflow `.github/workflows/pages.yml` gera `config.js` no job **build**.
 
 3. **Pages:** em **Settings → Pages**, em **Build and deployment**, escolha **GitHub Actions** (não “Deploy from a branch”).
 
