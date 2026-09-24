@@ -498,7 +498,7 @@
     };
 
     const INSTRUCAO_PADRAO =
-      'Fale o que você quer lembrar e quando. Exemplo: "Me lembra de tomar o remédio amanhã".';
+      'Fale o que você quer lembrar e quando. Exemplo: "Ligar para Roberto Silva na sexta feira".';
 
     const params = new URLSearchParams(window.location.search);
     const modoTeste = params.get('teste') === '1';
@@ -1539,7 +1539,7 @@
       } else {
         if (!apiAtiva()) {
           el.instrucao.textContent =
-            'Fale o lembrete e o dia. Exemplo: “Me lembra de tomar o remédio amanhã”. Tentamos abrir o Outlook para salvar.';
+            'Fale o lembrete e o dia. Exemplo: “Ligar para Roberto Silva na sexta feira”. Tentamos abrir o Outlook para salvar.';
         }
         renderizarEstado(ESTADO.PRONTO, {});
       }

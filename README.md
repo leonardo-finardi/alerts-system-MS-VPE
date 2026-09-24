@@ -4,7 +4,7 @@ Uma tela para gravar lembretes por voz (60+).
 
 ## Como funciona
 
-1. Fale o lembrete e a data (“me lembra de tomar remédio amanhã às 8”).
+1. Fale o lembrete e a data (“Ligar para Roberto Silva na sexta feira”).
 2. O app tenta abrir o **Outlook** no celular com o evento — toque em **Salvar**. Se o app não existir, você continua nesta página (lembrete já salvo na lista).
 3. **Ver próximos lembretes** lista o que está guardado no celular e permite **excluir**.
 
