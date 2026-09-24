@@ -2,61 +2,74 @@
 
 Página simples para gravar lembretes por voz e enviar para o Google Apps Script (transcrição + agendamento).
 
-## Configurar API e token
+## Senha, API e token (repositório público)
 
-Abra `index.html` e edite o objeto no início do `<script>`:
+Os segredos **não** ficam no Git. Eles vão em `config.js`, que está no `.gitignore`.
 
-```js
-const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/SEU_ID/exec',
-  TOKEN: 'SEU_TOKEN_SECRETO',
-  DURACAO_MAXIMA_SEG: 60,
-  DURACAO_MINIMA_SEG: 1
-};
-```
+1. **Local:** copie o exemplo e preencha:
 
-Salve o arquivo antes de publicar.
+   ```bash
+   cp config.example.js config.js
+   ```
+
+   Edite `config.js`:
+
+   ```js
+   const CONFIG = {
+     API_URL: 'https://script.google.com/macros/s/SEU_ID/exec',
+     TOKEN: 'SEU_TOKEN_SECRETO',
+     SENHA: 'SUA_SENHA_DE_ACESSO',
+     DURACAO_MAXIMA_SEG: 60,
+     DURACAO_MINIMA_SEG: 1
+   };
+   ```
+
+2. **GitHub Pages (Actions):** em **Settings → Secrets and variables → Actions**, crie:
+
+   | Secret    | Conteúdo                          |
+   |-----------|-----------------------------------|
+   | `API_URL` | URL do Apps Script                |
+   | `TOKEN`   | Token do backend                  |
+   | `SENHA`   | Senha para abrir a página no celular |
+
+   O workflow `.github/workflows/pages.yml` gera `config.js` no deploy a partir desses secrets.
+
+3. **Pages:** em **Settings → Pages**, em **Build and deployment**, escolha **GitHub Actions** (não “Deploy from a branch”).
+
+Quem abrir o site precisa digitar a **SENHA** uma vez por aba (fica lembrada na sessão do navegador). A senha impede curiosos de usar o link; quem souber inspecionar o site ainda vê o `config.js` — a proteção forte continua sendo o `TOKEN` no Apps Script.
 
 ## Publicar no GitHub Pages
 
-1. Envie este repositório para o GitHub (branch `main` ou `master`).
-2. No repositório: **Settings → Pages**.
-3. Em **Build and deployment**, escolha **Deploy from a branch**.
-4. Branch: `main` (ou `master`), pasta **/ (root)**.
-5. Salve. Em alguns minutos o site ficará em `https://SEU_USUARIO.github.io/NOME_DO_REPO/`.
+1. Envie o repositório para o GitHub (pode ser **público**).
+2. Configure os três secrets acima.
+3. Ative Pages com **GitHub Actions**.
+4. A cada push em `main` (ou `master`), o workflow publica o site.
 
-Use sempre **HTTPS** (GitHub Pages já fornece). O microfone só funciona em contexto seguro.
+Use sempre **HTTPS**. O microfone só funciona em contexto seguro.
 
 ## Adicionar à tela inicial
 
 ### iPhone (Safari)
 
-1. Abra o link da página no **Safari**.
-2. Toque em **Compartilhar** (ícone de quadrado com seta).
-3. Role e toque em **Adicionar à Tela de Início**.
-4. Confirme o nome **Lembretes** e toque em **Adicionar**.
+1. Abra o link no **Safari** e digite a senha.
+2. **Compartilhar** → **Adicionar à Tela de Início** → confirme **Lembretes**.
 
 ### Android (Chrome)
 
-1. Abra o link no **Chrome**.
-2. Toque no menu **⋮** (três pontos).
-3. Toque em **Adicionar à tela inicial** ou **Instalar app**.
-4. Confirme.
+1. Abra o link no **Chrome** e digite a senha.
+2. Menu **⋮** → **Adicionar à tela inicial** (ou **Instalar app**).
 
 ## Testar sem microfone
 
-Abra a página com `?teste=1` na URL, por exemplo:
-
-`https://SEU_USUARIO.github.io/NOME_DO_REPO/?teste=1`
-
-Digite um texto e use **Enviar texto de teste** (o backend recebe `{ token, texto }` em vez de áudio).
+`https://SEU_USUARIO.github.io/NOME_DO_REPO/?teste=1` (após entrar com a senha).
 
 ## Arquivos
 
 | Arquivo | Função |
 |---------|--------|
-| `index.html` | App completo (HTML, CSS, JS) |
-| `manifest.webmanifest` | Atalho PWA “standalone” |
-| `icons/` | Ícones SVG e PNG para instalação |
-
-Não é necessário service worker para uso como atalho na tela inicial.
+| `index.html` | App (HTML, CSS, JS) |
+| `config.example.js` | Modelo de configuração (versionado) |
+| `config.js` | Segredos locais (**não** commitar) |
+| `manifest.webmanifest` | Atalho PWA |
+| `icons/` | Ícones |
+| `.github/workflows/pages.yml` | Deploy com secrets |

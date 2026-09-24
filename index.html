@@ -276,10 +276,97 @@
     }
 
     .oculto { display: none !important; }
+
+    .tela-senha {
+      width: 100%;
+      max-width: 600px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.25rem;
+      text-align: center;
+    }
+
+    .tela-senha__titulo {
+      font-size: var(--fonte-grande);
+      font-weight: 600;
+      margin: 0;
+      max-width: 22ch;
+    }
+
+    .campo-senha {
+      width: 100%;
+      max-width: 320px;
+      font-size: var(--fonte-base);
+      font-family: inherit;
+      padding: 1rem 1.125rem;
+      border-radius: 14px;
+      border: 2px solid #78909C;
+      min-height: 56px;
+    }
+
+    .campo-senha:focus {
+      outline: 3px solid #90CAF9;
+      outline-offset: 2px;
+      border-color: var(--cor-azul);
+    }
+
+    .erro-senha {
+      color: var(--cor-alerta-texto);
+      font-weight: 600;
+      margin: 0;
+      min-height: 1.5em;
+    }
+
+    .btn-entrar {
+      padding: 1rem 2.5rem;
+      font-size: var(--fonte-base);
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      background: var(--cor-azul);
+      color: #fff;
+      border-radius: 999px;
+      cursor: pointer;
+      min-height: 56px;
+      min-width: 200px;
+      box-shadow: 0 6px 18px rgba(21, 101, 192, 0.3);
+    }
+
+    .btn-entrar:focus-visible {
+      outline: 4px solid #90CAF9;
+      outline-offset: 3px;
+    }
+
+    .aviso-config {
+      font-size: var(--fonte-base);
+      color: var(--cor-alerta-texto);
+      max-width: 36ch;
+    }
   </style>
 </head>
 <body>
-  <main class="app" id="app">
+  <section class="tela-senha" id="telaSenha" aria-labelledby="tituloSenha">
+    <h1 class="tela-senha__titulo" id="tituloSenha">Digite a senha para entrar</h1>
+    <p class="erro-senha" id="erroSenha" aria-live="polite"></p>
+    <p class="aviso-config oculto" id="avisoConfig"></p>
+    <form id="formSenha" class="tela-senha" style="width:100%;max-width:400px;gap:1rem;" autocomplete="off">
+      <input
+        type="password"
+        class="campo-senha"
+        id="inputSenha"
+        name="senha"
+        autocomplete="current-password"
+        aria-label="Senha de acesso"
+        inputmode="text"
+      >
+      <button type="submit" class="btn-entrar" id="btnEntrar">Entrar</button>
+    </form>
+  </section>
+
+  <main class="app oculto" id="app" aria-hidden="true">
     <p class="instrucao" id="instrucao"></p>
 
     <div class="modo-teste" id="modoTeste">
@@ -304,13 +391,9 @@
     <div id="acoesSecundarias"></div>
   </main>
 
+  <script src="config.js"></script>
   <script>
-    const CONFIG = {
-      API_URL: 'https://script.google.com/macros/s/XXXX/exec',
-      TOKEN: 'COLOCAR_TOKEN_AQUI',
-      DURACAO_MAXIMA_SEG: 60,
-      DURACAO_MINIMA_SEG: 1
-    };
+    const CHAVE_SESSAO = 'lembretes_auth_v1';
 
     const MIME_PREFERENCIA = [
       'audio/webm;codecs=opus',
@@ -348,8 +431,15 @@
     let ultimoPayload = null;
     let ultimaMensagemFala = '';
     let envioEmAndamento = false;
+    let appIniciado = false;
 
     const el = {
+      telaSenha: document.getElementById('telaSenha'),
+      formSenha: document.getElementById('formSenha'),
+      inputSenha: document.getElementById('inputSenha'),
+      erroSenha: document.getElementById('erroSenha'),
+      avisoConfig: document.getElementById('avisoConfig'),
+      app: document.getElementById('app'),
       instrucao: document.getElementById('instrucao'),
       areaMensagem: document.getElementById('areaMensagem'),
       cronometro: document.getElementById('cronometro'),
@@ -362,6 +452,95 @@
       textoTeste: document.getElementById('textoTeste'),
       btnEnviarTeste: document.getElementById('btnEnviarTeste')
     };
+
+    function senhaConfigurada() {
+      return typeof CONFIG !== 'undefined' &&
+        CONFIG.SENHA &&
+        CONFIG.SENHA !== 'COLOCAR_SENHA_AQUI';
+    }
+
+    function hashSenha(texto) {
+      if (!window.crypto || !crypto.subtle) {
+        return Promise.resolve(String(texto));
+      }
+      return crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(texto)))
+        .then(function (buf) {
+          return Array.from(new Uint8Array(buf))
+            .map(function (b) { return b.toString(16).padStart(2, '0'); })
+            .join('');
+        });
+    }
+
+    function mostrarApp() {
+      el.telaSenha.classList.add('oculto');
+      el.app.classList.remove('oculto');
+      el.app.setAttribute('aria-hidden', 'false');
+    }
+
+    function mostrarTelaSenha(mensagemErro) {
+      el.app.classList.add('oculto');
+      el.app.setAttribute('aria-hidden', 'true');
+      el.telaSenha.classList.remove('oculto');
+      el.erroSenha.textContent = mensagemErro || '';
+      el.inputSenha.value = '';
+      el.inputSenha.focus();
+    }
+
+    function liberarAcesso() {
+      return hashSenha(CONFIG.SENHA).then(function (h) {
+        try {
+          sessionStorage.setItem(CHAVE_SESSAO, h);
+        } catch (_) { /* ignore */ }
+        mostrarApp();
+        iniciarApp();
+      });
+    }
+
+    function sessaoValida() {
+      if (!senhaConfigurada()) return Promise.resolve(false);
+      var salvo;
+      try {
+        salvo = sessionStorage.getItem(CHAVE_SESSAO);
+      } catch (_) {
+        return Promise.resolve(false);
+      }
+      if (!salvo) return Promise.resolve(false);
+      return hashSenha(CONFIG.SENHA).then(function (h) { return salvo === h; });
+    }
+
+    function configurarPortaSenha() {
+      if (typeof CONFIG === 'undefined') {
+        el.formSenha.classList.add('oculto');
+        el.avisoConfig.classList.remove('oculto');
+        el.avisoConfig.textContent =
+          'Falta o arquivo de configuração. Copie config.example.js para config.js ou publique com GitHub Actions.';
+        return;
+      }
+
+      if (!senhaConfigurada()) {
+        el.formSenha.classList.add('oculto');
+        el.avisoConfig.classList.remove('oculto');
+        el.avisoConfig.textContent =
+          'A senha ainda não foi configurada. Defina SENHA no config.js ou nos secrets do repositório.';
+        return;
+      }
+
+      el.formSenha.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        var digitada = (el.inputSenha.value || '').trim();
+        if (!digitada) {
+          el.erroSenha.textContent = 'Digite a senha.';
+          return;
+        }
+        if (digitada === CONFIG.SENHA) {
+          el.erroSenha.textContent = '';
+          liberarAcesso();
+        } else {
+          el.erroSenha.textContent = 'Senha incorreta. Tente de novo.';
+          el.inputSenha.select();
+        }
+      });
+    }
 
     function escolherMimeType() {
       if (typeof MediaRecorder === 'undefined') return null;
@@ -808,28 +987,40 @@
       }
     }
 
-    el.btnPrincipal.addEventListener('click', aoClicarPrincipal);
+    function iniciarApp() {
+      if (appIniciado) return;
+      appIniciado = true;
+      el.btnPrincipal.addEventListener('click', aoClicarPrincipal);
 
-    if (modoTeste) {
-      el.modoTeste.classList.add('ativo');
-      el.btnPrincipal.classList.add('oculto');
-      el.instrucao.textContent = 'Modo teste: digite um lembrete e envie sem gravar.';
-      el.btnEnviarTeste.addEventListener('click', function () {
-        if (estadoAtual === ESTADO.ENVIANDO) return;
-        const texto = (el.textoTeste.value || '').trim();
-        if (!texto) {
-          el.areaMensagem.className = 'area-mensagem area-mensagem--alerta';
-          el.areaMensagem.innerHTML =
-            '<p class="mensagem-principal">Digite uma frase de lembrete no campo acima.</p>';
-          return;
-        }
-        enviar({ token: CONFIG.TOKEN, texto: texto });
-      });
-    } else if (!navegadorSuportaGravacao()) {
-      renderizarEstado(ESTADO.SEM_SUPORTE, {});
-    } else {
-      renderizarEstado(ESTADO.PRONTO, {});
+      if (modoTeste) {
+        el.modoTeste.classList.add('ativo');
+        el.btnPrincipal.classList.add('oculto');
+        el.instrucao.textContent = 'Modo teste: digite um lembrete e envie sem gravar.';
+        el.btnEnviarTeste.addEventListener('click', function () {
+          if (estadoAtual === ESTADO.ENVIANDO) return;
+          const texto = (el.textoTeste.value || '').trim();
+          if (!texto) {
+            el.areaMensagem.className = 'area-mensagem area-mensagem--alerta';
+            el.areaMensagem.innerHTML =
+              '<p class="mensagem-principal">Digite uma frase de lembrete no campo acima.</p>';
+            return;
+          }
+          enviar({ token: CONFIG.TOKEN, texto: texto });
+        });
+      } else if (!navegadorSuportaGravacao()) {
+        renderizarEstado(ESTADO.SEM_SUPORTE, {});
+      } else {
+        renderizarEstado(ESTADO.PRONTO, {});
+      }
     }
+
+    configurarPortaSenha();
+    sessaoValida().then(function (ok) {
+      if (ok) {
+        mostrarApp();
+        iniciarApp();
+      }
+    });
   </script>
 </body>
 </html>
