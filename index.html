@@ -222,10 +222,70 @@
       outline-offset: 2px;
     }
 
-    .btn-ouvir {
-      padding: 0.65rem 1.25rem;
-      font-size: clamp(18px, 4vw, 20px);
-      margin-top: 0.75rem;
+    .btn-topo {
+      align-self: stretch;
+      max-width: 100%;
+      padding: 0.85rem 1.25rem;
+      font-size: var(--fonte-base);
+      font-weight: 600;
+      font-family: inherit;
+      border: 2px solid var(--cor-azul);
+      background: #fff;
+      color: var(--cor-azul);
+      border-radius: 14px;
+      cursor: pointer;
+      min-height: 52px;
+    }
+
+    .painel-lista {
+      width: 100%;
+      text-align: left;
+    }
+
+    .painel-lista h2 {
+      font-size: var(--fonte-grande);
+      margin: 0 0 1rem;
+      text-align: center;
+    }
+
+    .lista-vazia {
+      text-align: center;
+      font-size: var(--fonte-base);
+      color: #546E7A;
+    }
+
+    .item-lembrete {
+      background: #fff;
+      border: 2px solid #CFD8DC;
+      border-radius: 14px;
+      padding: 1rem 1.125rem;
+      margin-bottom: 0.85rem;
+    }
+
+    .item-lembrete__data {
+      font-size: clamp(20px, 4.5vw, 24px);
+      font-weight: 700;
+      color: var(--cor-azul);
+      margin: 0 0 0.35rem;
+    }
+
+    .item-lembrete__tarefa {
+      font-size: var(--fonte-base);
+      margin: 0 0 0.75rem;
+    }
+
+    .btn-excluir {
+      width: 100%;
+      padding: 0.75rem;
+      font-size: clamp(20px, 4.5vw, 22px);
+      font-weight: 600;
+      font-family: inherit;
+      border: 2px solid var(--cor-vermelho);
+      background: #fff;
+      color: var(--cor-vermelho);
+      border-radius: 12px;
+      cursor: pointer;
+      min-height: 52px;
     }
 
     .passos-mic {
@@ -368,7 +428,9 @@
   </section>
 
   <main class="app oculto" id="app" aria-hidden="true">
+    <button type="button" class="btn-topo oculto" id="btnVerLembretes">📋 Ver próximos lembretes</button>
     <p class="instrucao" id="instrucao"></p>
+    <div id="painelLista" class="painel-lista oculto" aria-live="polite"></div>
 
     <div class="modo-teste" id="modoTeste">
       <p class="aviso-teste">Modo teste (sem microfone)</p>
@@ -431,7 +493,8 @@
       ERRO_BACKEND: 'ERRO_BACKEND',
       ERRO_REDE: 'ERRO_REDE',
       MICROFONE_NEGADO: 'MICROFONE_NEGADO',
-      SEM_SUPORTE: 'SEM_SUPORTE'
+      SEM_SUPORTE: 'SEM_SUPORTE',
+      LISTA: 'LISTA'
     };
 
     const INSTRUCAO_PADRAO =
@@ -450,12 +513,12 @@
     let timerMaximo = null;
     let timerMensagemEnviando = null;
     let ultimoPayload = null;
-    let ultimaMensagemFala = '';
     let envioEmAndamento = false;
     let appIniciado = false;
     let reconhecimento = null;
-    let textoFalaPartes = [];
+    let transcriptaoAtual = '';
     let modoGravacaoLocal = false;
+    let paradaReconhecimento = false;
 
     const el = {
       telaSenha: document.getElementById('telaSenha'),
@@ -474,7 +537,9 @@
       acoesSecundarias: document.getElementById('acoesSecundarias'),
       modoTeste: document.getElementById('modoTeste'),
       textoTeste: document.getElementById('textoTeste'),
-      btnEnviarTeste: document.getElementById('btnEnviarTeste')
+      btnEnviarTeste: document.getElementById('btnEnviarTeste'),
+      btnVerLembretes: document.getElementById('btnVerLembretes'),
+      painelLista: document.getElementById('painelLista')
     };
 
     function senhaConfigurada() {
@@ -635,24 +700,6 @@
       });
     }
 
-    function falar(texto) {
-      if (!window.speechSynthesis || !texto) return;
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(texto);
-      u.lang = 'pt-BR';
-      u.rate = 0.95;
-      const vozes = window.speechSynthesis.getVoices();
-      const pt = vozes.find(function (v) {
-        return v.lang && (v.lang.startsWith('pt-BR') || v.lang.startsWith('pt'));
-      });
-      if (pt) u.voice = pt;
-      window.speechSynthesis.speak(u);
-    }
-
-    if (window.speechSynthesis) {
-      window.speechSynthesis.onvoiceschanged = function () {};
-    }
-
     function cfg(nome, padrao) {
       if (CONFIG[nome] === undefined || CONFIG[nome] === null) return padrao;
       return CONFIG[nome];
@@ -751,8 +798,8 @@
         if (l.hora) s += ', às ' + l.hora;
         return s;
       });
-      return 'Anotado! ✅ Vou te lembrar de ' + partes.join('; e de ') +
-        '. Toque em “Colocar no calendário” para o celular avisar na hora certa.';
+      return 'Anotado! ✅ ' + partes.join('; e de ') +
+        '. Agora vou abrir o calendário — toque em Salvar na próxima tela.';
     }
 
     function interpretarLocal(texto) {
@@ -796,56 +843,81 @@
       }
     }
 
-    function escapeIcs(s) {
-      return String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+    function urlCalendarioGoogle(l) {
+      const p = l.data.split('-');
+      const titulo = encodeURIComponent(l.tarefa);
+      const detalhe = encodeURIComponent('Lembrete — Meus Lembretes');
+      let hora = l.hora;
+      if (!hora) hora = '09:00';
+      const hm = hora.split(':');
+      const ini = p[0] + p[1] + p[2] + 'T' + hm[0] + hm[1] + '00';
+      const fimH = String(Math.min(23, parseInt(hm[0], 10) + 1)).padStart(2, '0');
+      const fim = p[0] + p[1] + p[2] + 'T' + fimH + hm[1] + '00';
+      return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + titulo +
+        '&dates=' + ini + '/' + fim + '&details=' + detalhe + '&ctz=America%2FSao_Paulo';
     }
 
-    function gerarArquivoIcs(lembretes) {
-      const linhas = [
-        'BEGIN:VCALENDAR',
-        'VERSION:2.0',
-        'PRODID:-//Meus Lembretes//PT',
-        'CALSCALE:GREGORIAN',
-        'METHOD:PUBLISH'
-      ];
-      lembretes.forEach(function (l) {
-        const p = l.data.split('-');
-        linhas.push('BEGIN:VEVENT');
-        linhas.push('UID:' + l.id + '@meus-lembretes');
-        if (l.hora) {
-          const hm = l.hora.split(':');
-          const inicio = p[0] + p[1] + p[2] + 'T' + hm[0] + hm[1] + '00';
-          linhas.push('DTSTART;TZID=' + FUSO + ':' + inicio);
-          const fimH = String((parseInt(hm[0], 10) + 1) % 24).padStart(2, '0');
-          linhas.push('DTEND;TZID=' + FUSO + ':' + p[0] + p[1] + p[2] + 'T' + fimH + hm[1] + '00');
-        } else {
-          linhas.push('DTSTART;VALUE=DATE:' + p[0] + p[1] + p[2]);
-          linhas.push('DTEND;VALUE=DATE:' + p[0] + p[1] + p[2]);
-        }
-        linhas.push('SUMMARY:' + escapeIcs(l.tarefa));
-        linhas.push('DESCRIPTION:' + escapeIcs('Lembrete criado por voz'));
-        linhas.push('BEGIN:VALARM');
-        linhas.push('TRIGGER:-PT15M');
-        linhas.push('ACTION:DISPLAY');
-        linhas.push('DESCRIPTION:Lembrete');
-        linhas.push('END:VALARM');
-        linhas.push('END:VEVENT');
+    function abrirCalendario(lembretes) {
+      if (!lembretes || !lembretes.length) return;
+      window.location.assign(urlCalendarioGoogle(lembretes[0]));
+    }
+
+    function carregarTodosLembretes() {
+      try {
+        return JSON.parse(localStorage.getItem(CHAVE_LEMBRETES) || '[]');
+      } catch (_) {
+        return [];
+      }
+    }
+
+    function listarProximosLembretes() {
+      const hoje = hojeISO();
+      return carregarTodosLembretes()
+        .filter(function (l) { return l.data && l.data >= hoje; })
+        .sort(function (a, b) {
+          if (a.data !== b.data) return a.data.localeCompare(b.data);
+          return (a.hora || '99:99').localeCompare(b.hora || '99:99');
+        });
+    }
+
+    function hojeISO() {
+      return dataISO(agoraNoFuso());
+    }
+
+    function excluirLembrete(id) {
+      const lista = carregarTodosLembretes().filter(function (l) { return l.id !== id; });
+      localStorage.setItem(CHAVE_LEMBRETES, JSON.stringify(lista));
+      renderizarListaLembretes();
+    }
+
+    function renderizarListaLembretes() {
+      const itens = listarProximosLembretes();
+      let html = '<h2>Próximos lembretes</h2>';
+      if (!itens.length) {
+        html += '<p class="lista-vazia">Nenhum lembrete futuro. Toque em Voltar e grave um novo.</p>';
+      } else {
+        itens.forEach(function (l) {
+          html += '<article class="item-lembrete">';
+          html += '<p class="item-lembrete__data">' + escapeHtml(dataPorExtenso(l.data)) +
+            (l.hora ? ' · ' + escapeHtml(l.hora) : ' · 9h (padrão)') + '</p>';
+          html += '<p class="item-lembrete__tarefa">' + escapeHtml(l.tarefa) + '</p>';
+          html += '<button type="button" class="btn-excluir" data-id="' + escapeHtml(l.id) + '">Excluir este lembrete</button>';
+          html += '</article>';
+        });
+      }
+      html += '<button type="button" class="btn-secundario" id="btnVoltarLista" style="width:100%;margin-top:0.5rem;">Voltar</button>';
+      el.painelLista.innerHTML = html;
+      el.painelLista.querySelectorAll('.btn-excluir').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          excluirLembrete(btn.getAttribute('data-id'));
+        });
       });
-      linhas.push('END:VCALENDAR');
-      return linhas.join('\r\n');
-    }
-
-    function baixarIcs(lembretes) {
-      const conteudo = gerarArquivoIcs(lembretes);
-      const blob = new Blob([conteudo], { type: 'text/calendar;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'lembrete.ics';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+      const voltar = document.getElementById('btnVoltarLista');
+      if (voltar) {
+        voltar.addEventListener('click', function () {
+          renderizarEstado(ESTADO.PRONTO, {});
+        });
+      }
     }
 
     function processarTextoLocal(texto) {
@@ -863,6 +935,9 @@
               texto: r.texto,
               lembretes: r.lembretes
             });
+            window.setTimeout(function () {
+              abrirCalendario(r.lembretes);
+            }, 900);
           } else {
             renderizarEstado(ESTADO.ERRO_BACKEND, { mensagem: r.mensagem, texto: r.texto || '' });
           }
@@ -883,11 +958,26 @@
       processarTextoLocal(texto);
     }
 
-    function pararReconhecimento() {
-      if (reconhecimento) {
-        try { reconhecimento.stop(); } catch (_) { /* ignore */ }
-        reconhecimento = null;
+    function finalizarGravacaoLocal() {
+      limparTimersGravacao();
+      modoGravacaoLocal = false;
+      paradaReconhecimento = false;
+      const duracaoSeg = (Date.now() - inicioGravacaoMs) / 1000;
+      const texto = transcriptaoAtual.trim();
+      transcriptaoAtual = '';
+      reconhecimento = null;
+
+      if (duracaoSeg < cfg('DURACAO_MINIMA_SEG', 1)) {
+        renderizarEstado(ESTADO.PRONTO, { avisoCurto: true });
+        return;
       }
+      if (!texto) {
+        renderizarEstado(ESTADO.PRONTO, {
+          aviso: 'Não ouvi nada. Fale devagar, perto do celular, e toque de novo para terminar.'
+        });
+        return;
+      }
+      processarTextoLocal(texto);
     }
 
     async function enviar(payload) {
@@ -987,15 +1077,6 @@
               return;
             }
 
-            if (modoGravacaoLocal) {
-              modoGravacaoLocal = false;
-              pararReconhecimento();
-              const texto = textoFalaPartes.join(' ').trim();
-              textoFalaPartes = [];
-              processarTextoLocal(texto);
-              return;
-            }
-
             const blob = new Blob(chunks, { type: mimeTypeGravacao });
             chunks = [];
             enviarBlob(blob, mimeTypeGravacao).catch(function (err) {
@@ -1034,7 +1115,6 @@
         .catch(function (err) {
           console.error(err);
           pararStream();
-          pararReconhecimento();
           if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
             renderizarEstado(ESTADO.MICROFONE_NEGADO, {});
           } else {
@@ -1052,127 +1132,89 @@
         return;
       }
 
-      navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(function (stream) {
-          mediaStream = stream;
-          chunks = [];
-          textoFalaPartes = [];
-          modoGravacaoLocal = true;
+      transcriptaoAtual = '';
+      paradaReconhecimento = false;
+      modoGravacaoLocal = true;
+      mediaRecorder = null;
 
-          const mimeEscolhido = escolherMimeType();
-          try {
-            mediaRecorder = mimeEscolhido
-              ? new MediaRecorder(stream, { mimeType: mimeEscolhido })
-              : new MediaRecorder(stream);
-          } catch (e) {
-            mediaRecorder = null;
-          }
-          mimeTypeGravacao = (mediaRecorder && mediaRecorder.mimeType) || mimeEscolhido || 'audio/webm';
+      reconhecimento = new SpeechRecognition();
+      reconhecimento.lang = 'pt-BR';
+      reconhecimento.continuous = true;
+      reconhecimento.interimResults = true;
 
-          if (mediaRecorder) {
-            mediaRecorder.ondataavailable = function () { /* só cronômetro / duração mínima */ };
-            mediaRecorder.onstop = function () {
-              limparTimersGravacao();
-              const duracaoSeg = (Date.now() - inicioGravacaoMs) / 1000;
-              pararStream();
-              if (duracaoSeg < cfg('DURACAO_MINIMA_SEG', 1)) {
-                modoGravacaoLocal = false;
-                pararReconhecimento();
-                textoFalaPartes = [];
-                renderizarEstado(ESTADO.PRONTO, { avisoCurto: true });
-                return;
-              }
-              modoGravacaoLocal = false;
-              pararReconhecimento();
-              const texto = textoFalaPartes.join(' ').trim();
-              textoFalaPartes = [];
-              processarTextoLocal(texto);
-            };
-            mediaRecorder.onerror = function () {
-              limparTimersGravacao();
-              pararStream();
-              pararReconhecimento();
-              modoGravacaoLocal = false;
-              renderizarEstado(ESTADO.PRONTO, { aviso: 'Algo deu errado na gravação. Toque para tentar de novo.' });
-            };
-          }
+      reconhecimento.onresult = function (ev) {
+        let t = '';
+        for (let i = 0; i < ev.results.length; i++) {
+          t += ev.results[i][0].transcript;
+        }
+        transcriptaoAtual = t;
+      };
 
-          reconhecimento = new SpeechRecognition();
-          reconhecimento.lang = 'pt-BR';
-          reconhecimento.continuous = true;
-          reconhecimento.interimResults = true;
-          reconhecimento.onresult = function (ev) {
-            for (let i = ev.resultIndex; i < ev.results.length; i++) {
-              if (ev.results[i].isFinal) {
-                textoFalaPartes.push(ev.results[i][0].transcript);
-              }
-            }
-          };
-          reconhecimento.onerror = function (ev) {
-            console.error(ev.error || ev);
-          };
+      reconhecimento.onerror = function (ev) {
+        console.error(ev.error || ev);
+        if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
+          paradaReconhecimento = true;
+          modoGravacaoLocal = false;
+          reconhecimento = null;
+          limparTimersGravacao();
+          renderizarEstado(ESTADO.MICROFONE_NEGADO, {});
+        }
+      };
 
-          inicioGravacaoMs = Date.now();
-          try {
-            reconhecimento.start();
-          } catch (err) {
+      reconhecimento.onend = function () {
+        if (paradaReconhecimento) {
+          if (modoGravacaoLocal) finalizarGravacaoLocal();
+          return;
+        }
+        if (modoGravacaoLocal && reconhecimento) {
+          try { reconhecimento.start(); } catch (err) {
             console.error(err);
+            paradaReconhecimento = true;
+            finalizarGravacaoLocal();
           }
-          if (mediaRecorder) {
-            try { mediaRecorder.start(250); } catch (_) { /* ignore */ }
-          }
+        }
+      };
 
-          if (navigator.vibrate) {
-            try { navigator.vibrate(80); } catch (_) { /* ignore */ }
-          }
-
-          renderizarEstado(ESTADO.GRAVANDO, {});
-
-          timerInterval = setInterval(function () {
-            const seg = (Date.now() - inicioGravacaoMs) / 1000;
-            el.cronometro.textContent = formatarTempo(seg);
-          }, 200);
-
-          timerMaximo = setTimeout(function () {
-            pararGravacao();
-          }, cfg('DURACAO_MAXIMA_SEG', 60) * 1000);
-        })
-        .catch(function (err) {
-          console.error(err);
-          pararStream();
-          pararReconhecimento();
-          if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-            renderizarEstado(ESTADO.MICROFONE_NEGADO, {});
-          } else {
-            renderizarEstado(ESTADO.PRONTO, {
-              aviso: 'Não consegui usar o microfone. Toque para tentar de novo.'
-            });
-          }
+      inicioGravacaoMs = Date.now();
+      try {
+        reconhecimento.start();
+      } catch (err) {
+        console.error(err);
+        modoGravacaoLocal = false;
+        reconhecimento = null;
+        renderizarEstado(ESTADO.PRONTO, {
+          aviso: 'Não consegui iniciar o microfone. Toque para tentar de novo.'
         });
+        return;
+      }
+
+      if (navigator.vibrate) {
+        try { navigator.vibrate(80); } catch (_) { /* ignore */ }
+      }
+
+      renderizarEstado(ESTADO.GRAVANDO, {});
+
+      timerInterval = setInterval(function () {
+        const seg = (Date.now() - inicioGravacaoMs) / 1000;
+        el.cronometro.textContent = formatarTempo(seg);
+      }, 200);
+
+      timerMaximo = setTimeout(function () {
+        paradaReconhecimento = true;
+        if (reconhecimento) {
+          try { reconhecimento.stop(); } catch (_) { /* ignore */ }
+        }
+      }, cfg('DURACAO_MAXIMA_SEG', 60) * 1000);
     }
 
     function pararGravacao() {
-      if (modoGravacaoLocal) {
-        pararReconhecimento();
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-          try { mediaRecorder.stop(); } catch (e) {
-            console.error(e);
-            limparTimersGravacao();
-            pararStream();
-            modoGravacaoLocal = false;
-            const texto = textoFalaPartes.join(' ').trim();
-            textoFalaPartes = [];
-            if (texto) processarTextoLocal(texto);
-            else renderizarEstado(ESTADO.PRONTO, {});
-          }
-        } else {
-          limparTimersGravacao();
-          pararStream();
-          modoGravacaoLocal = false;
-          const texto = textoFalaPartes.join(' ').trim();
-          textoFalaPartes = [];
-          if (texto) processarTextoLocal(texto);
-          else renderizarEstado(ESTADO.PRONTO, { aviso: 'Não ouvi nada. Tente falar de novo.' });
+      if (modoGravacaoLocal && reconhecimento) {
+        paradaReconhecimento = true;
+        try {
+          reconhecimento.stop();
+        } catch (e) {
+          console.error(e);
+          finalizarGravacaoLocal();
         }
         return;
       }
@@ -1202,11 +1244,14 @@
       el.btnPrincipal.className = 'btn-principal';
       el.iconeMic.classList.add('oculto');
       el.spinner.classList.add('oculto');
+      el.painelLista.classList.add('oculto');
+      el.btnVerLembretes.classList.add('oculto');
 
       switch (estado) {
         case ESTADO.PRONTO:
           el.instrucao.textContent = INSTRUCAO_PADRAO;
           el.instrucao.classList.remove('oculto');
+          el.btnVerLembretes.classList.remove('oculto');
           if (dados.avisoCurto) {
             el.areaMensagem.className = 'area-mensagem area-mensagem--alerta';
             el.areaMensagem.innerHTML =
@@ -1259,42 +1304,37 @@
           }
           el.areaMensagem.innerHTML = html;
 
-          ultimaMensagemFala = msg;
-          falar(msg);
-
           const btnOutro = document.createElement('button');
           btnOutro.type = 'button';
           btnOutro.className = 'btn-secundario';
           btnOutro.textContent = 'Gravar outro lembrete';
           btnOutro.addEventListener('click', function () {
-            window.speechSynthesis && window.speechSynthesis.cancel();
             renderizarEstado(ESTADO.PRONTO, {});
             el.btnPrincipal.classList.remove('oculto');
           });
 
-          const btnOuvir = document.createElement('button');
-          btnOuvir.type = 'button';
-          btnOuvir.className = 'btn-secundario btn-ouvir';
-          btnOuvir.textContent = '🔊 Ouvir de novo';
-          btnOuvir.addEventListener('click', function () {
-            falar(ultimaMensagemFala);
-          });
-
           el.acoesSecundarias.appendChild(btnOutro);
-          el.acoesSecundarias.appendChild(btnOuvir);
 
           if (dados.lembretes && dados.lembretes.length) {
             const btnCal = document.createElement('button');
             btnCal.type = 'button';
             btnCal.className = 'btn-secundario';
-            btnCal.textContent = '📅 Colocar no calendário';
+            btnCal.textContent = 'Abrir calendário de novo';
             btnCal.addEventListener('click', function () {
-              baixarIcs(dados.lembretes);
+              abrirCalendario(dados.lembretes);
             });
             el.acoesSecundarias.appendChild(btnCal);
           }
           break;
         }
+
+        case ESTADO.LISTA:
+          el.instrucao.classList.add('oculto');
+          el.btnPrincipal.classList.add('oculto');
+          el.areaMensagem.innerHTML = '';
+          el.painelLista.classList.remove('oculto');
+          renderizarListaLembretes();
+          break;
 
         case ESTADO.ERRO_BACKEND:
           el.instrucao.classList.add('oculto');
@@ -1412,6 +1452,10 @@
       if (appIniciado) return;
       appIniciado = true;
       el.btnPrincipal.addEventListener('click', aoClicarPrincipal);
+      el.btnVerLembretes.addEventListener('click', function () {
+        if (estadoAtual === ESTADO.ENVIANDO || estadoAtual === ESTADO.GRAVANDO) return;
+        renderizarEstado(ESTADO.LISTA, {});
+      });
 
       if (modoTeste) {
         el.modoTeste.classList.add('ativo');
@@ -1435,7 +1479,7 @@
       } else {
         if (!apiAtiva()) {
           el.instrucao.textContent =
-            'Fale o lembrete e o dia. Exemplo: “Me lembra de tomar o remédio amanhã”. Depois coloque no calendário do celular.';
+            'Fale o lembrete e o dia. Exemplo: “Me lembra de tomar o remédio amanhã”. O calendário abre sozinho para você salvar.';
         }
         renderizarEstado(ESTADO.PRONTO, {});
       }
