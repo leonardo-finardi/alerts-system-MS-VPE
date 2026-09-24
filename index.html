@@ -372,7 +372,7 @@
     <div class="modo-teste" id="modoTeste">
       <p class="aviso-teste">Modo teste (sem microfone)</p>
       <label for="textoTeste">Digite o lembrete:</label>
-      <textarea id="textoTeste" placeholder="Me lembra de tomar o remédio amanhã"></textarea>
+      <textarea id="textoTeste" placeholder="Me lembrar de ligar pra ALFE no dia 15 do mes que vem"></textarea>
       <button type="button" class="btn-secundario" id="btnEnviarTeste">Enviar texto de teste</button>
     </div>
 
@@ -641,10 +641,11 @@
       const timeoutId = setTimeout(function () { controller.abort(); }, 60000);
 
       try {
+        // Corpo como Blob text/plain sem charset evita preflight OPTIONS (GAS não responde OPTIONS).
+        const corpo = new Blob([JSON.stringify(payload)], { type: 'text/plain' });
         const res = await fetch(CONFIG.API_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload),
+          body: corpo,
           signal: controller.signal
         });
         clearTimeout(timeoutId);

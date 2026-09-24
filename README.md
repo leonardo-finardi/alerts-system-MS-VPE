@@ -79,3 +79,17 @@ Use sempre **HTTPS**. O microfone só funciona em contexto seguro.
 | `manifest.webmanifest` | Atalho PWA |
 | `icons/` | Ícones |
 | `.github/workflows/pages.yml` | Deploy com secrets |
+
+## Erro de CORS no Chrome (GitHub Pages → Apps Script)
+
+Se aparecer *“blocked by CORS policy”* ao enviar áudio:
+
+1. **URL do Web App** — use a URL de **implantação** que termina em `/exec` (não `/dev`). Cole em `API_URL` / secret `API_URL`.
+
+2. **Quem pode acessar** — no Apps Script: **Implantar → Gerenciar implantações → Web app** → **Quem tem acesso: Qualquer pessoa**. Crie uma **nova versão** depois de mudar.
+
+3. **Google Workspace** (`script.google.com/a/macros/...`) — alguns domínios bloqueiam sites externos. Se ainda falhar, confira políticas com o admin ou use implantação em conta `@gmail.com` (`script.google.com/macros/s/.../exec`).
+
+4. **`doPost`** — retorno JSON com `ContentService.createTextOutput(...).setMimeType(ContentService.MimeType.JSON)`.
+
+A página envia POST “simples” (`Blob` `text/plain`, sem headers extras) para não disparar preflight OPTIONS.
