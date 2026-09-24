@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1565C0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Lembretes">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <title>Meus Lembretes</title>
+  <style>
+    :root {
+      --cor-fundo: #F5F7FA;
+      --cor-texto: #1A1A1A;
+      --cor-azul: #1565C0;
+      --cor-azul-escuro: #0D47A1;
+      --cor-vermelho: #C62828;
+      --cor-verde-fundo: #E8F5E9;
+      --cor-verde-texto: #1B5E20;
+      --cor-alerta-fundo: #FFF3E0;
+      --cor-alerta-texto: #E65100;
+      --fonte-base: clamp(22px, 5vw, 26px);
+      --fonte-grande: clamp(28px, 6.5vw, 34px);
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-left: env(safe-area-inset-left, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html {
+      height: 100%;
+      touch-action: manipulation;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100%;
+      min-height: 100dvh;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: var(--fonte-base);
+      line-height: 1.45;
+      color: var(--cor-texto);
+      background: var(--cor-fundo);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding:
+        calc(16px + var(--safe-top))
+        calc(16px + var(--safe-right))
+        calc(16px + var(--safe-bottom))
+        calc(16px + var(--safe-left));
+    }
+
+    .app {
+      width: 100%;
+      max-width: 600px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.25rem;
+      text-align: center;
+    }
+
+    .instrucao {
+      font-size: var(--fonte-grande);
+      font-weight: 600;
+      margin: 0;
+      max-width: 28ch;
+    }
+
+    .area-mensagem {
+      width: 100%;
+      padding: 1rem 1.25rem;
+      border-radius: 16px;
+      min-height: 3rem;
+    }
+
+    .area-mensagem--neutra { background: transparent; }
+    .area-mensagem--sucesso {
+      background: var(--cor-verde-fundo);
+      color: var(--cor-verde-texto);
+    }
+    .area-mensagem--alerta {
+      background: var(--cor-alerta-fundo);
+      color: var(--cor-alerta-texto);
+    }
+
+    .mensagem-principal {
+      font-size: var(--fonte-grande);
+      font-weight: 600;
+      margin: 0 0 0.5rem;
+    }
+
+    .mensagem-ouvi {
+      font-size: var(--fonte-base);
+      font-weight: 400;
+      margin: 0;
+      opacity: 0.9;
+    }
+
+    .icone-sucesso {
+      font-size: clamp(48px, 12vw, 64px);
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+
+    .cronometro {
+      font-size: clamp(40px, 10vw, 56px);
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      margin: 0;
+      letter-spacing: 0.02em;
+    }
+
+    .btn-principal {
+      width: min(72vw, 280px);
+      height: min(72vw, 280px);
+      min-width: 220px;
+      min-height: 220px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      color: #fff;
+      font-size: clamp(20px, 4.5vw, 24px);
+      font-weight: 600;
+      font-family: inherit;
+      transition: transform 0.15s ease, background 0.2s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-principal:active:not(:disabled) {
+      transform: scale(0.97);
+    }
+
+    .btn-principal--pronto {
+      background: var(--cor-azul);
+      box-shadow: 0 8px 24px rgba(21, 101, 192, 0.35);
+    }
+
+    .btn-principal--pronto:focus-visible {
+      outline: 4px solid #90CAF9;
+      outline-offset: 4px;
+    }
+
+    .btn-principal--gravando {
+      background: var(--cor-vermelho);
+      box-shadow: 0 8px 24px rgba(198, 40, 40, 0.35);
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .btn-principal--gravando {
+        animation: pulsar 1.6s ease-in-out infinite;
+      }
+    }
+
+    @keyframes pulsar {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.04); }
+    }
+
+    .btn-principal--enviando {
+      background: #78909C;
+      cursor: not-allowed;
+      opacity: 0.95;
+    }
+
+    .btn-principal:disabled {
+      cursor: not-allowed;
+    }
+
+    .btn-icone-mic {
+      width: clamp(56px, 14vw, 72px);
+      height: clamp(56px, 14vw, 72px);
+      fill: currentColor;
+    }
+
+    .spinner {
+      width: 56px;
+      height: 56px;
+      border: 5px solid rgba(255, 255, 255, 0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: girar 0.9s linear infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .spinner { animation: none; border-top-color: rgba(255,255,255,0.8); }
+    }
+
+    @keyframes girar {
+      to { transform: rotate(360deg); }
+    }
+
+    .btn-secundario {
+      margin-top: 0.5rem;
+      padding: 1rem 1.75rem;
+      font-size: var(--fonte-base);
+      font-weight: 600;
+      font-family: inherit;
+      border: 2px solid var(--cor-azul);
+      background: #fff;
+      color: var(--cor-azul);
+      border-radius: 999px;
+      cursor: pointer;
+      min-height: 56px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-secundario:focus-visible {
+      outline: 3px solid #90CAF9;
+      outline-offset: 2px;
+    }
+
+    .btn-ouvir {
+      padding: 0.65rem 1.25rem;
+      font-size: clamp(18px, 4vw, 20px);
+      margin-top: 0.75rem;
+    }
+
+    .passos-mic {
+      text-align: left;
+      max-width: 32ch;
+      margin: 0 auto;
+      font-size: var(--fonte-base);
+    }
+
+    .passos-mic ol {
+      margin: 0.5rem 0 0;
+      padding-left: 1.25rem;
+    }
+
+    .passos-mic li { margin-bottom: 0.5rem; }
+
+    .modo-teste {
+      width: 100%;
+      max-width: 400px;
+      display: none;
+    }
+
+    .modo-teste.ativo { display: block; }
+
+    .modo-teste label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      font-size: var(--fonte-base);
+    }
+
+    .modo-teste textarea {
+      width: 100%;
+      min-height: 100px;
+      font-size: var(--fonte-base);
+      font-family: inherit;
+      padding: 0.75rem;
+      border-radius: 12px;
+      border: 2px solid #B0BEC5;
+    }
+
+    .modo-teste .btn-secundario { width: 100%; }
+
+    .aviso-teste {
+      font-size: 18px;
+      color: #546E7A;
+      margin: 0 0 0.75rem;
+    }
+
+    .oculto { display: none !important; }
+  </style>
+</head>
+<body>
+  <main class="app" id="app">
+    <p class="instrucao" id="instrucao"></p>
+
+    <div class="modo-teste" id="modoTeste">
+      <p class="aviso-teste">Modo teste (sem microfone)</p>
+      <label for="textoTeste">Digite o lembrete:</label>
+      <textarea id="textoTeste" placeholder="Me lembra de tomar o remédio amanhã"></textarea>
+      <button type="button" class="btn-secundario" id="btnEnviarTeste">Enviar texto de teste</button>
+    </div>
+
+    <div class="area-mensagem area-mensagem--neutra" id="areaMensagem" aria-live="polite" aria-atomic="true"></div>
+
+    <p class="cronometro oculto" id="cronometro" aria-hidden="true">0:00</p>
+
+    <button type="button" class="btn-principal btn-principal--pronto" id="btnPrincipal" aria-label="Toque para gravar">
+      <svg class="btn-icone-mic oculto" id="iconeMic" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-2.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+      </svg>
+      <span class="spinner oculto" id="spinner"></span>
+      <span id="textoBtn">Toque para gravar</span>
+    </button>
+
+    <div id="acoesSecundarias"></div>
+  </main>
+
+  <script>
+    const CONFIG = {
+      API_URL: 'https://script.google.com/macros/s/XXXX/exec',
+      TOKEN: 'COLOCAR_TOKEN_AQUI',
+      DURACAO_MAXIMA_SEG: 60,
+      DURACAO_MINIMA_SEG: 1
+    };
+
+    const MIME_PREFERENCIA = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4',
+      'audio/ogg;codecs=opus'
+    ];
+
+    const ESTADO = {
+      PRONTO: 'PRONTO',
+      GRAVANDO: 'GRAVANDO',
+      ENVIANDO: 'ENVIANDO',
+      SUCESSO: 'SUCESSO',
+      ERRO_BACKEND: 'ERRO_BACKEND',
+      ERRO_REDE: 'ERRO_REDE',
+      MICROFONE_NEGADO: 'MICROFONE_NEGADO',
+      SEM_SUPORTE: 'SEM_SUPORTE'
+    };
+
+    const INSTRUCAO_PADRAO =
+      'Fale o que você quer lembrar e quando. Exemplo: "Me lembra de tomar o remédio amanhã".';
+
+    const params = new URLSearchParams(window.location.search);
+    const modoTeste = params.get('teste') === '1';
+
+    let estadoAtual = ESTADO.PRONTO;
+    let mediaStream = null;
+    let mediaRecorder = null;
+    let chunks = [];
+    let mimeTypeGravacao = 'audio/webm;codecs=opus';
+    let inicioGravacaoMs = 0;
+    let timerInterval = null;
+    let timerMaximo = null;
+    let timerMensagemEnviando = null;
+    let ultimoPayload = null;
+    let ultimaMensagemFala = '';
+    let envioEmAndamento = false;
+
+    const el = {
+      instrucao: document.getElementById('instrucao'),
+      areaMensagem: document.getElementById('areaMensagem'),
+      cronometro: document.getElementById('cronometro'),
+      btnPrincipal: document.getElementById('btnPrincipal'),
+      iconeMic: document.getElementById('iconeMic'),
+      spinner: document.getElementById('spinner'),
+      textoBtn: document.getElementById('textoBtn'),
+      acoesSecundarias: document.getElementById('acoesSecundarias'),
+      modoTeste: document.getElementById('modoTeste'),
+      textoTeste: document.getElementById('textoTeste'),
+      btnEnviarTeste: document.getElementById('btnEnviarTeste')
+    };
+
+    function escolherMimeType() {
+      if (typeof MediaRecorder === 'undefined') return null;
+      for (const mime of MIME_PREFERENCIA) {
+        if (MediaRecorder.isTypeSupported(mime)) return mime;
+      }
+      return null;
+    }
+
+    function navegadorSuportaGravacao() {
+      return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia &&
+        typeof MediaRecorder !== 'undefined');
+    }
+
+    function ehIOS() {
+      return /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+
+    function ehSafari() {
+      return /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || ehIOS();
+    }
+
+    function formatarTempo(segundos) {
+      const s = Math.floor(segundos);
+      const m = Math.floor(s / 60);
+      const r = s % 60;
+      return m + ':' + String(r).padStart(2, '0');
+    }
+
+    function limparTimersGravacao() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+      if (timerMaximo) {
+        clearTimeout(timerMaximo);
+        timerMaximo = null;
+      }
+    }
+
+    function limparTimerEnviando() {
+      if (timerMensagemEnviando) {
+        clearTimeout(timerMensagemEnviando);
+        timerMensagemEnviando = null;
+      }
+    }
+
+    function pararStream() {
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(function (t) { t.stop(); });
+        mediaStream = null;
+      }
+    }
+
+    function blobParaBase64(blob) {
+      return new Promise(function (resolve, reject) {
+        const reader = new FileReader();
+        reader.onloadend = function () {
+          const result = reader.result;
+          if (typeof result !== 'string') {
+            reject(new Error('Leitura inválida'));
+            return;
+          }
+          const idx = result.indexOf(',');
+          resolve(idx >= 0 ? result.slice(idx + 1) : result);
+        };
+        reader.onerror = function () { reject(reader.error || new Error('Falha ao ler áudio')); };
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    function falar(texto) {
+      if (!window.speechSynthesis || !texto) return;
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(texto);
+      u.lang = 'pt-BR';
+      u.rate = 0.95;
+      const vozes = window.speechSynthesis.getVoices();
+      const pt = vozes.find(function (v) {
+        return v.lang && (v.lang.startsWith('pt-BR') || v.lang.startsWith('pt'));
+      });
+      if (pt) u.voice = pt;
+      window.speechSynthesis.speak(u);
+    }
+
+    if (window.speechSynthesis) {
+      window.speechSynthesis.onvoiceschanged = function () {};
+    }
+
+    async function enviar(payload) {
+      if (envioEmAndamento) return;
+      envioEmAndamento = true;
+      ultimoPayload = payload;
+      renderizarEstado(ESTADO.ENVIANDO, {});
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(function () { controller.abort(); }, 60000);
+
+      try {
+        const res = await fetch(CONFIG.API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        let data;
+        try {
+          data = await res.json();
+        } catch (parseErr) {
+          console.error(parseErr);
+          renderizarEstado(ESTADO.ERRO_REDE, {});
+          return;
+        }
+
+        if (data.ok) {
+          renderizarEstado(ESTADO.SUCESSO, {
+            mensagem: data.mensagem || 'Pronto!',
+            texto: data.texto || ''
+          });
+        } else {
+          console.error(data.erro);
+          renderizarEstado(ESTADO.ERRO_BACKEND, {
+            mensagem: data.mensagem || 'Não deu para anotar desta vez. Tente falar de novo.'
+          });
+        }
+      } catch (err) {
+        clearTimeout(timeoutId);
+        console.error(err);
+        renderizarEstado(ESTADO.ERRO_REDE, {});
+      } finally {
+        envioEmAndamento = false;
+      }
+    }
+
+    function enviarBlob(blob, mime) {
+      return blobParaBase64(blob).then(function (base64) {
+        return enviar({
+          token: CONFIG.TOKEN,
+          audio: base64,
+          mimeType: mime || blob.type || mimeTypeGravacao
+        });
+      });
+    }
+
+    function iniciarGravacao() {
+      const mimeEscolhido = escolherMimeType();
+      const opcoes = mimeEscolhido ? { mimeType: mimeEscolhido } : undefined;
+
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function (stream) {
+          mediaStream = stream;
+          chunks = [];
+          try {
+            mediaRecorder = opcoes
+              ? new MediaRecorder(stream, opcoes)
+              : new MediaRecorder(stream);
+          } catch (e) {
+            console.error(e);
+            pararStream();
+            renderizarEstado(ESTADO.SEM_SUPORTE, {});
+            return;
+          }
+
+          mimeTypeGravacao = mediaRecorder.mimeType || mimeEscolhido || 'audio/webm';
+
+          mediaRecorder.ondataavailable = function (ev) {
+            if (ev.data && ev.data.size > 0) chunks.push(ev.data);
+          };
+
+          mediaRecorder.onstop = function () {
+            limparTimersGravacao();
+            const duracaoSeg = (Date.now() - inicioGravacaoMs) / 1000;
+            pararStream();
+
+            if (duracaoSeg < CONFIG.DURACAO_MINIMA_SEG) {
+              renderizarEstado(ESTADO.PRONTO, {
+                avisoCurto: true
+              });
+              return;
+            }
+
+            const blob = new Blob(chunks, { type: mimeTypeGravacao });
+            chunks = [];
+            enviarBlob(blob, mimeTypeGravacao).catch(function (err) {
+              console.error(err);
+              renderizarEstado(ESTADO.ERRO_REDE, {});
+            });
+          };
+
+          mediaRecorder.onerror = function (ev) {
+            console.error(ev.error || ev);
+            limparTimersGravacao();
+            pararStream();
+            renderizarEstado(ESTADO.PRONTO, {
+              aviso: 'Algo deu errado na gravação. Toque para tentar de novo.'
+            });
+          };
+
+          inicioGravacaoMs = Date.now();
+          mediaRecorder.start(250);
+
+          if (navigator.vibrate) {
+            try { navigator.vibrate(80); } catch (_) { /* ignore */ }
+          }
+
+          renderizarEstado(ESTADO.GRAVANDO, {});
+
+          timerInterval = setInterval(function () {
+            const seg = (Date.now() - inicioGravacaoMs) / 1000;
+            el.cronometro.textContent = formatarTempo(seg);
+          }, 200);
+
+          timerMaximo = setTimeout(function () {
+            pararGravacao();
+          }, CONFIG.DURACAO_MAXIMA_SEG * 1000);
+        })
+        .catch(function (err) {
+          console.error(err);
+          pararStream();
+          if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            renderizarEstado(ESTADO.MICROFONE_NEGADO, {});
+          } else {
+            renderizarEstado(ESTADO.PRONTO, {
+              aviso: 'Não consegui usar o microfone. Toque para tentar de novo.'
+            });
+          }
+        });
+    }
+
+    function pararGravacao() {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        try {
+          mediaRecorder.stop();
+        } catch (e) {
+          console.error(e);
+          limparTimersGravacao();
+          pararStream();
+          renderizarEstado(ESTADO.PRONTO, {});
+        }
+      }
+    }
+
+    function renderizarEstado(estado, dados) {
+      estadoAtual = estado;
+      dados = dados || {};
+      limparTimerEnviando();
+      el.acoesSecundarias.innerHTML = '';
+
+      el.areaMensagem.className = 'area-mensagem area-mensagem--neutra';
+      el.areaMensagem.innerHTML = '';
+      el.instrucao.classList.remove('oculto');
+      el.cronometro.classList.add('oculto');
+      el.btnPrincipal.disabled = false;
+      el.btnPrincipal.className = 'btn-principal';
+      el.iconeMic.classList.add('oculto');
+      el.spinner.classList.add('oculto');
+
+      switch (estado) {
+        case ESTADO.PRONTO:
+          el.instrucao.textContent = INSTRUCAO_PADRAO;
+          el.instrucao.classList.remove('oculto');
+          if (dados.avisoCurto) {
+            el.areaMensagem.className = 'area-mensagem area-mensagem--alerta';
+            el.areaMensagem.innerHTML =
+              '<p class="mensagem-principal">Foi rapidinho demais. Toque no botão, fale o lembrete e toque de novo para terminar.</p>';
+          } else if (dados.aviso) {
+            el.areaMensagem.className = 'area-mensagem area-mensagem--alerta';
+            el.areaMensagem.innerHTML =
+              '<p class="mensagem-principal">' + escapeHtml(dados.aviso) + '</p>';
+          }
+          el.btnPrincipal.classList.add('btn-principal--pronto');
+          el.iconeMic.classList.remove('oculto');
+          el.textoBtn.textContent = 'Toque para gravar';
+          el.btnPrincipal.setAttribute('aria-label', 'Toque para gravar');
+          break;
+
+        case ESTADO.GRAVANDO:
+          el.instrucao.classList.add('oculto');
+          el.cronometro.classList.remove('oculto');
+          el.cronometro.textContent = '0:00';
+          el.btnPrincipal.classList.add('btn-principal--gravando');
+          el.iconeMic.classList.remove('oculto');
+          el.textoBtn.textContent = 'Toque para terminar';
+          el.btnPrincipal.setAttribute('aria-label', 'Toque para terminar a gravação');
+          break;
+
+        case ESTADO.ENVIANDO:
+          el.instrucao.classList.add('oculto');
+          el.btnPrincipal.disabled = true;
+          el.btnPrincipal.classList.add('btn-principal--enviando');
+          el.spinner.classList.remove('oculto');
+          el.textoBtn.textContent = 'Anotando seu lembrete…';
+          el.btnPrincipal.setAttribute('aria-label', 'Enviando lembrete');
+          timerMensagemEnviando = setTimeout(function () {
+            if (estadoAtual === ESTADO.ENVIANDO) {
+              el.textoBtn.textContent = 'Só mais um pouquinho…';
+            }
+          }, 10000);
+          break;
+
+        case ESTADO.SUCESSO: {
+          el.instrucao.classList.add('oculto');
+          el.btnPrincipal.classList.add('oculto');
+          el.areaMensagem.className = 'area-mensagem area-mensagem--sucesso';
+          const msg = dados.mensagem || '';
+          const ouvi = dados.texto || '';
+          let html = '<div class="icone-sucesso" aria-hidden="true">✅</div>';
+          html += '<p class="mensagem-principal">' + escapeHtml(msg) + '</p>';
+          if (ouvi) {
+            html += '<p class="mensagem-ouvi">Eu ouvi: “' + escapeHtml(ouvi) + '”</p>';
+          }
+          el.areaMensagem.innerHTML = html;
+
+          ultimaMensagemFala = msg;
+          falar(msg);
+
+          const btnOutro = document.createElement('button');
+          btnOutro.type = 'button';
+          btnOutro.className = 'btn-secundario';
+          btnOutro.textContent = 'Gravar outro lembrete';
+          btnOutro.addEventListener('click', function () {
+            window.speechSynthesis && window.speechSynthesis.cancel();
+            renderizarEstado(ESTADO.PRONTO, {});
+            el.btnPrincipal.classList.remove('oculto');
+          });
+
+          const btnOuvir = document.createElement('button');
+          btnOuvir.type = 'button';
+          btnOuvir.className = 'btn-secundario btn-ouvir';
+          btnOuvir.textContent = '🔊 Ouvir de novo';
+          btnOuvir.addEventListener('click', function () {
+            falar(ultimaMensagemFala);
+          });
+
+          el.acoesSecundarias.appendChild(btnOutro);
+          el.acoesSecundarias.appendChild(btnOuvir);
+          break;
+        }
+
+        case ESTADO.ERRO_BACKEND:
+          el.instrucao.classList.add('oculto');
+          el.btnPrincipal.classList.add('oculto');
+          el.areaMensagem.className = 'area-mensagem area-mensagem--alerta';
+          el.areaMensagem.innerHTML =
+            '<p class="mensagem-principal">' + escapeHtml(dados.mensagem || 'Não deu desta vez.') + '</p>';
+          adicionarBotaoSecundario('Tentar de novo', function () {
+            renderizarEstado(ESTADO.PRONTO, {});
+            el.btnPrincipal.classList.remove('oculto');
+          });
+          break;
+
+        case ESTADO.ERRO_REDE:
+          el.instrucao.classList.add('oculto');
+          el.btnPrincipal.classList.add('oculto');
+          el.areaMensagem.className = 'area-mensagem area-mensagem--alerta';
+          el.areaMensagem.innerHTML =
+            '<p class="mensagem-principal">Não consegui enviar. Verifique se a internet está ligada.</p>';
+          adicionarBotaoSecundario('Enviar de novo', function () {
+            if (ultimoPayload) {
+              enviar(ultimoPayload);
+            } else {
+              renderizarEstado(ESTADO.PRONTO, {});
+              el.btnPrincipal.classList.remove('oculto');
+            }
+          });
+          break;
+
+        case ESTADO.MICROFONE_NEGADO:
+          el.instrucao.classList.add('oculto');
+          el.btnPrincipal.classList.add('oculto');
+          el.areaMensagem.className = 'area-mensagem area-mensagem--alerta';
+          el.areaMensagem.innerHTML = '<p class="mensagem-principal">Preciso do microfone para ouvir seu lembrete.</p>' +
+            textoPassosMicrofone();
+          adicionarBotaoSecundario('Tentar de novo', function () {
+            renderizarEstado(ESTADO.PRONTO, {});
+            el.btnPrincipal.classList.remove('oculto');
+          });
+          break;
+
+        case ESTADO.SEM_SUPORTE:
+          el.instrucao.classList.add('oculto');
+          el.btnPrincipal.classList.add('oculto');
+          el.areaMensagem.className = 'area-mensagem area-mensagem--alerta';
+          el.areaMensagem.innerHTML =
+            '<p class="mensagem-principal">Este navegador não consegue gravar. Abra este link no Chrome (Android) ou Safari (iPhone).</p>';
+          break;
+
+        default:
+          renderizarEstado(ESTADO.PRONTO, {});
+      }
+    }
+
+    function adicionarBotaoSecundario(texto, aoClicar) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn-secundario';
+      btn.textContent = texto;
+      btn.addEventListener('click', aoClicar);
+      el.acoesSecundarias.appendChild(btn);
+    }
+
+    function textoPassosMicrofone() {
+      if (ehSafari() || ehIOS()) {
+        return (
+          '<div class="passos-mic"><p>No iPhone:</p><ol>' +
+          '<li>Toque o ícone <strong>AA</strong> ou o cadeado na barra de endereço.</li>' +
+          '<li>Escolha <strong>Configurações do site</strong> ou <strong>Microfone</strong>.</li>' +
+          '<li>Permita o microfone para este site.</li>' +
+          '<li>Toque em <strong>Tentar de novo</strong> abaixo.</li></ol></div>'
+        );
+      }
+      return (
+        '<div class="passos-mic"><p>No Android:</p><ol>' +
+        '<li>Toque o cadeado ao lado do endereço do site.</li>' +
+        '<li>Toque em <strong>Permissões</strong>.</li>' +
+        '<li>Ative o <strong>Microfone</strong>.</li>' +
+        '<li>Toque em <strong>Tentar de novo</strong> abaixo.</li></ol></div>'
+      );
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function aoClicarPrincipal() {
+      if (modoTeste) return;
+      if (estadoAtual === ESTADO.ENVIANDO) return;
+
+      if (estadoAtual === ESTADO.PRONTO) {
+        if (!navegadorSuportaGravacao()) {
+          renderizarEstado(ESTADO.SEM_SUPORTE, {});
+          return;
+        }
+        iniciarGravacao();
+      } else if (estadoAtual === ESTADO.GRAVANDO) {
+        pararGravacao();
+      }
+    }
+
+    el.btnPrincipal.addEventListener('click', aoClicarPrincipal);
+
+    if (modoTeste) {
+      el.modoTeste.classList.add('ativo');
+      el.btnPrincipal.classList.add('oculto');
+      el.instrucao.textContent = 'Modo teste: digite um lembrete e envie sem gravar.';
+      el.btnEnviarTeste.addEventListener('click', function () {
+        if (estadoAtual === ESTADO.ENVIANDO) return;
+        const texto = (el.textoTeste.value || '').trim();
+        if (!texto) {
+          el.areaMensagem.className = 'area-mensagem area-mensagem--alerta';
+          el.areaMensagem.innerHTML =
+            '<p class="mensagem-principal">Digite uma frase de lembrete no campo acima.</p>';
+          return;
+        }
+        enviar({ token: CONFIG.TOKEN, texto: texto });
+      });
+    } else if (!navegadorSuportaGravacao()) {
+      renderizarEstado(ESTADO.SEM_SUPORTE, {});
+    } else {
+      renderizarEstado(ESTADO.PRONTO, {});
+    }
+  </script>
+</body>
+</html>
