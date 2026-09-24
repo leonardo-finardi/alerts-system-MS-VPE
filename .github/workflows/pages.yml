@@ -3,6 +3,7 @@ name: Deploy GitHub Pages
 on:
   push:
     branches: [main, master]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,29 +24,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Gerar config.js a partir dos secrets
+      - name: Gerar config.js (Secrets ou Variables)
         env:
-          API_URL: ${{ secrets.API_URL }}
-          TOKEN: ${{ secrets.TOKEN }}
-          SENHA: ${{ secrets.SENHA }}
-        run: |
-          node -e "
-          const fs = require('fs');
-          for (const k of ['API_URL', 'TOKEN', 'SENHA']) {
-            if (!process.env[k]) {
-              console.error('Secret ausente: ' + k);
-              process.exit(1);
-            }
-          }
-          const CONFIG = {
-            API_URL: process.env.API_URL,
-            TOKEN: process.env.TOKEN,
-            SENHA: process.env.SENHA,
-            DURACAO_MAXIMA_SEG: 60,
-            DURACAO_MINIMA_SEG: 1
-          };
-          fs.writeFileSync('config.js', 'const CONFIG = ' + JSON.stringify(CONFIG, null, 2) + ';\\n');
-          "
+          # Secrets têm prioridade; Variables servem se você criou lá por engano
+          API_URL: ${{ secrets.API_URL || vars.API_URL }}
+          TOKEN: ${{ secrets.TOKEN || vars.TOKEN }}
+          SENHA: ${{ secrets.SENHA || vars.SENHA }}
+        run: node scripts/generate-config.js
 
       - name: Configurar Pages
         uses: actions/configure-pages@v5

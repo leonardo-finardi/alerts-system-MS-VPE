@@ -24,15 +24,17 @@ Os segredos **não** ficam no Git. Eles vão em `config.js`, que está no `.giti
    };
    ```
 
-2. **GitHub Pages (Actions):** em **Settings → Secrets and variables → Actions**, crie:
+2. **GitHub Pages (Actions):** em **Settings → Secrets and variables → Actions**, aba **Secrets** (recomendado), crie:
 
-   | Secret    | Conteúdo                          |
+   | Nome      | Conteúdo                          |
    |-----------|-----------------------------------|
    | `API_URL` | URL do Apps Script                |
    | `TOKEN`   | Token do backend                  |
    | `SENHA`   | Senha para abrir a página no celular |
 
-   O workflow `.github/workflows/pages.yml` gera `config.js` no deploy a partir desses secrets.
+   Use exatamente esses nomes (maiúsculas). Se o deploy falhar com “Valores ausentes”, confira se não criou só na aba **Variables** — o workflow aceita Secrets ou Variables com os mesmos nomes.
+
+   O workflow `.github/workflows/pages.yml` gera `config.js` no deploy.
 
 3. **Pages:** em **Settings → Pages**, em **Build and deployment**, escolha **GitHub Actions** (não “Deploy from a branch”).
 
