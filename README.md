@@ -20,7 +20,8 @@ GitHub Pages via Actions, secret `SENHA` no environment `envs`.
 
 ## Calendário (Outlook)
 
-Deep link `ms-outlook://events/new` (no Android, intent do pacote Outlook). Se não abrir o app, a página **não** redireciona para outro site — use **Ver próximos lembretes** ou **Abrir Outlook de novo**.
+- **Mobile:** `ms-outlook://events/new` com `description=` (transcrição) e `title=Alerta - CRM`.
+- **Desktop:** [Outlook na Web (live.com)](https://outlook.live.com/calendar) — compose com `deeplink/compose`, não `ms-outlook://`.
 
 ## Microfone
 

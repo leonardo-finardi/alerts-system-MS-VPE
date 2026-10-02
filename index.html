@@ -479,6 +479,8 @@
     const FUSO = 'America/Sao_Paulo';
     const TITULO_EVENTO_OUTLOOK = 'Alerta - CRM';
     const OFFSET_OUTLOOK_WEB = '-03:00';
+    /** Conta pessoal @outlook.com / @hotmail — compose via live.com (não office.com). */
+    const OUTLOOK_WEB_COMPOSE = 'https://outlook.live.com/calendar/0/deeplink/compose';
 
     const MIME_PREFERENCIA = [
       'audio/webm;codecs=opus',
@@ -1001,26 +1003,29 @@
       return instanteDoLembrete(l).getTime() > agoraNoFuso().getTime();
     }
 
+    function queryOutlookMobile(ev) {
+      // Mobile: "description" preenche o campo (body é só na Web). start/end e startdt/enddt por compatibilidade.
+      return 'title=' + encodeURIComponent(ev.titulo) +
+        '&description=' + encodeURIComponent(ev.descricao) +
+        '&start=' + encodeURIComponent(ev.inicio) +
+        '&end=' + encodeURIComponent(ev.fim) +
+        '&startdt=' + encodeURIComponent(ev.inicio) +
+        '&enddt=' + encodeURIComponent(ev.fim);
+    }
+
     /** Deep link do app Outlook (mobile). Se não houver app, a página permanece aqui. */
     function urlOutlookApp(l) {
       const ev = dadosEventoOutlook(l);
-      return 'ms-outlook://events/new?title=' + encodeURIComponent(ev.titulo) +
-        '&start=' + encodeURIComponent(ev.inicio) +
-        '&end=' + encodeURIComponent(ev.fim) +
-        '&body=' + encodeURIComponent(ev.descricao);
+      return 'ms-outlook://events/new?' + queryOutlookMobile(ev);
     }
 
     function urlOutlookAndroidIntent(l) {
       const ev = dadosEventoOutlook(l);
-      const path = 'events/new?title=' + encodeURIComponent(ev.titulo) +
-        '&start=' + encodeURIComponent(ev.inicio) +
-        '&end=' + encodeURIComponent(ev.fim) +
-        '&body=' + encodeURIComponent(ev.descricao);
-      return 'intent://' + path +
+      return 'intent://events/new?' + queryOutlookMobile(ev) +
         '#Intent;scheme=ms-outlook;package=com.microsoft.office.outlook;end';
     }
 
-    /** Desktop: Outlook na Web (Novo Outlook for Windows não usa ms-outlook://). */
+    /** Desktop: Outlook na Web — contas pessoais (outlook.live.com). */
     function urlOutlookWeb(l) {
       const ev = dadosEventoOutlook(l);
       const params = [
@@ -1032,11 +1037,15 @@
         'body=' + encodeURIComponent(ev.descricao),
         'timezone=' + encodeURIComponent(FUSO)
       ];
-      return 'https://outlook.office.com/calendar/0/deeplink/compose?' + params.join('&');
+      return OUTLOOK_WEB_COMPOSE + '?' + params.join('&');
     }
 
     function abrirOutlookDesktop(l) {
-      window.open(urlOutlookWeb(l), '_blank', 'noopener,noreferrer');
+      const url = urlOutlookWeb(l);
+      const novaAba = window.open(url, '_blank', 'noopener,noreferrer');
+      if (!novaAba) {
+        window.location.assign(url);
+      }
     }
 
     function avisoOutlookNaoAbriu() {
