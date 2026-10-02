@@ -1044,8 +1044,18 @@
       const url = urlOutlookWeb(l);
       const novaAba = window.open(url, '_blank', 'noopener,noreferrer');
       if (!novaAba) {
-        window.location.assign(url);
+        avisoOutlookPopUpBloqueado();
       }
+    }
+
+    function avisoOutlookPopUpBloqueado() {
+      if (estadoAtual !== ESTADO.SUCESSO) return;
+      if (document.getElementById('avisoOutlook')) return;
+      const p = document.createElement('p');
+      p.id = 'avisoOutlook';
+      p.className = 'mensagem-ouvi';
+      p.textContent = 'Não saí desta página. Se o Outlook não abriu, permita pop-ups para este site e toque de novo em “Abrir Outlook de novo”.';
+      el.areaMensagem.appendChild(p);
     }
 
     function avisoOutlookNaoAbriu() {
@@ -1173,9 +1183,11 @@
               texto: r.texto,
               lembretes: r.lembretes
             });
-            window.setTimeout(function () {
-              tentarAbrirOutlookEvento(r.lembretes);
-            }, 900);
+            if (ehMobile()) {
+              window.setTimeout(function () {
+                tentarAbrirOutlookEvento(r.lembretes);
+              }, 900);
+            }
           } else {
             renderizarEstado(ESTADO.ERRO_BACKEND, { mensagem: r.mensagem, texto: r.texto || '' });
           }
