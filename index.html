@@ -477,6 +477,8 @@
     const CHAVE_SESSAO = 'lembretes_auth_v1';
     const CHAVE_LEMBRETES = 'meus_lembretes_v1';
     const FUSO = 'America/Sao_Paulo';
+    const TITULO_EVENTO_OUTLOOK = 'Alerta - CRM';
+    const OFFSET_OUTLOOK_WEB = '-03:00';
 
     const MIME_PREFERENCIA = [
       'audio/webm;codecs=opus',
@@ -957,6 +959,10 @@
       return /Android/i.test(navigator.userAgent);
     }
 
+    function ehMobile() {
+      return /Android|webOS|iPhone|iPad|iPod|IEMobile|Opera Mini|Mobi/i.test(navigator.userAgent);
+    }
+
     function somarMinutosNaData(isoData, hm, minutos) {
       const p = isoData.split('-').map(Number);
       const d = new Date(p[0], p[1] - 1, p[2], parseInt(hm[0], 10), parseInt(hm[1], 10), 0);
@@ -971,11 +977,17 @@
       const hora = l.hora || '09:00';
       const hm = hora.split(':');
       const inicio = p[0] + '-' + p[1] + '-' + p[2] + 'T' + hm[0] + ':' + hm[1] + ':00';
+      const transcricao = String(l.texto || '').trim();
       return {
-        titulo: l.tarefa,
+        titulo: TITULO_EVENTO_OUTLOOK,
+        descricao: transcricao || String(l.tarefa || '').trim(),
         inicio: inicio,
         fim: somarMinutosNaData(l.data, hm, 15)
       };
+    }
+
+    function dataHoraOutlookWeb(isoLocal) {
+      return isoLocal.slice(0, 19) + OFFSET_OUTLOOK_WEB;
     }
 
     function instanteDoLembrete(l) {
@@ -994,16 +1006,37 @@
       const ev = dadosEventoOutlook(l);
       return 'ms-outlook://events/new?title=' + encodeURIComponent(ev.titulo) +
         '&start=' + encodeURIComponent(ev.inicio) +
-        '&end=' + encodeURIComponent(ev.fim);
+        '&end=' + encodeURIComponent(ev.fim) +
+        '&body=' + encodeURIComponent(ev.descricao);
     }
 
     function urlOutlookAndroidIntent(l) {
       const ev = dadosEventoOutlook(l);
       const path = 'events/new?title=' + encodeURIComponent(ev.titulo) +
         '&start=' + encodeURIComponent(ev.inicio) +
-        '&end=' + encodeURIComponent(ev.fim);
+        '&end=' + encodeURIComponent(ev.fim) +
+        '&body=' + encodeURIComponent(ev.descricao);
       return 'intent://' + path +
         '#Intent;scheme=ms-outlook;package=com.microsoft.office.outlook;end';
+    }
+
+    /** Desktop: Outlook na Web (Novo Outlook for Windows não usa ms-outlook://). */
+    function urlOutlookWeb(l) {
+      const ev = dadosEventoOutlook(l);
+      const params = [
+        'path=' + encodeURIComponent('/calendar/action/compose'),
+        'rru=addevent',
+        'startdt=' + encodeURIComponent(dataHoraOutlookWeb(ev.inicio)),
+        'enddt=' + encodeURIComponent(dataHoraOutlookWeb(ev.fim)),
+        'subject=' + encodeURIComponent(ev.titulo),
+        'body=' + encodeURIComponent(ev.descricao),
+        'timezone=' + encodeURIComponent(FUSO)
+      ];
+      return 'https://outlook.office.com/calendar/0/deeplink/compose?' + params.join('&');
+    }
+
+    function abrirOutlookDesktop(l) {
+      window.open(urlOutlookWeb(l), '_blank', 'noopener,noreferrer');
     }
 
     function avisoOutlookNaoAbriu() {
@@ -1014,6 +1047,16 @@
       p.className = 'mensagem-ouvi';
       p.textContent = 'O Outlook não abriu neste aparelho. O lembrete ficou salvo — veja em “Ver próximos lembretes”.';
       el.areaMensagem.appendChild(p);
+    }
+
+    function tentarAbrirOutlookEvento(lembretes) {
+      if (!lembretes || !lembretes.length) return;
+      const l = lembretes[0];
+      if (!ehMobile()) {
+        abrirOutlookDesktop(l);
+        return;
+      }
+      tentarAbrirOutlookMobile(lembretes);
     }
 
     function tentarAbrirOutlookMobile(lembretes) {
@@ -1122,7 +1165,7 @@
               lembretes: r.lembretes
             });
             window.setTimeout(function () {
-              tentarAbrirOutlookMobile(r.lembretes);
+              tentarAbrirOutlookEvento(r.lembretes);
             }, 900);
           } else {
             renderizarEstado(ESTADO.ERRO_BACKEND, { mensagem: r.mensagem, texto: r.texto || '' });
@@ -1507,7 +1550,7 @@
             btnCal.className = 'btn-secundario';
             btnCal.textContent = 'Abrir Outlook de novo';
             btnCal.addEventListener('click', function () {
-              tentarAbrirOutlookMobile(dados.lembretes);
+              tentarAbrirOutlookEvento(dados.lembretes);
             });
             el.acoesSecundarias.appendChild(btnCal);
           }
