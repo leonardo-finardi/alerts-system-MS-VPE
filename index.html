@@ -224,6 +224,47 @@
       outline-offset: 2px;
     }
 
+    .acoes-sucesso {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-top: 1.25rem;
+    }
+
+    .btn-outlook-principal {
+      width: 100%;
+      padding: 1.125rem 1.25rem;
+      font-size: var(--fonte-grande);
+      font-weight: 700;
+      font-family: inherit;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      min-height: 64px;
+      background: var(--cor-azul);
+      color: #fff;
+      box-shadow: 0 6px 18px rgba(21, 101, 192, 0.3);
+    }
+
+    .btn-outlook-principal:focus-visible {
+      outline: 4px solid #90CAF9;
+      outline-offset: 3px;
+    }
+
+    #acoesSecundarias {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.5rem;
+    }
+
+    .app.app--sucesso {
+      justify-content: flex-start;
+      padding-top: 0.5rem;
+    }
+
     .btn-topo {
       align-self: stretch;
       max-width: 100%;
@@ -671,6 +712,8 @@
 
     <div class="area-mensagem area-mensagem--neutra" id="areaMensagem" aria-live="polite" aria-atomic="true"></div>
 
+    <div id="acoesSecundarias"></div>
+
     <p class="cronometro oculto" id="cronometro" aria-hidden="true">0:00</p>
 
     <button type="button" class="btn-principal btn-principal--pronto" id="btnPrincipal" aria-label="Toque para gravar">
@@ -680,8 +723,6 @@
       <span class="spinner oculto" id="spinner"></span>
       <span id="textoBtn">Toque para gravar</span>
     </button>
-
-    <div id="acoesSecundarias"></div>
   </main>
 
   <div class="toast oculto" id="toast" role="status" aria-live="polite"></div>
@@ -876,17 +917,22 @@
       el.textoAoVivo.textContent = texto;
     }
 
+    function montarResumoLembrete(l) {
+      let s = l.tarefa;
+      s += ' — ' + dataPorExtenso(l.data);
+      if (l.hora) s += ', ' + l.hora;
+      return s;
+    }
+
+    function textoProximoPassoSucesso() {
+      if (ehMobile()) {
+        return 'Próximo passo: toque no botão azul “Abrir Outlook” e depois em Salvar no evento.';
+      }
+      return 'Próximo passo: toque em “Abrir Outlook na Web”. Se nada abrir, permita pop-ups para este site no navegador.';
+    }
+
     function montarMensagemOk(lembretes) {
-      const partes = lembretes.map(function (l) {
-        let s = l.tarefa.charAt(0).toLowerCase() + l.tarefa.slice(1);
-        s += ' na ' + dataPorExtenso(l.data);
-        if (l.hora) s += ', às ' + l.hora;
-        return s;
-      });
-      let fim = ehMobile()
-        ? ' Toque em “Abrir Outlook” e depois em Salvar.'
-        : ' Toque em “Abrir Outlook” (abre em outra aba).';
-      return 'Anotado! ✅ ' + partes.join('; e de ') + fim;
+      return 'Lembrete guardado! ✅';
     }
 
     function prepararConfirmacao(texto) {
@@ -910,7 +956,38 @@
         renderizarEstado(ESTADO.PRONTO, {});
         return;
       }
+      if (r.lembretes && r.lembretes.length) {
+        if (ehMobile()) {
+          tentarAbrirOutlookMobile(r.lembretes);
+        } else {
+          abrirOutlookDesktop(r.lembretes[0]);
+        }
+      }
       processarTextoLocalConfirmado(r);
+    }
+
+    function montarBotoesSucesso(lembretes) {
+      el.acoesSecundarias.innerHTML = '';
+      if (lembretes && lembretes.length) {
+        const btnCal = document.createElement('button');
+        btnCal.type = 'button';
+        btnCal.className = 'btn-outlook-principal';
+        btnCal.textContent = ehMobile() ? 'Abrir Outlook' : 'Abrir Outlook na Web';
+        btnCal.addEventListener('click', function () {
+          tentarAbrirOutlookEvento(lembretes);
+        });
+        el.acoesSecundarias.appendChild(btnCal);
+      }
+      const btnOutro = document.createElement('button');
+      btnOutro.type = 'button';
+      btnOutro.className = 'btn-secundario';
+      btnOutro.style.width = '100%';
+      btnOutro.textContent = 'Gravar outro lembrete';
+      btnOutro.addEventListener('click', function () {
+        renderizarEstado(ESTADO.PRONTO, {});
+        el.btnPrincipal.classList.remove('oculto');
+      });
+      el.acoesSecundarias.appendChild(btnOutro);
     }
 
     function senhaConfigurada() {
@@ -1410,7 +1487,7 @@
       const p = document.createElement('p');
       p.id = 'avisoOutlook';
       p.className = 'mensagem-ouvi';
-      p.textContent = 'Não saí desta página. Se o Outlook não abriu, permita pop-ups para este site e toque de novo em “Abrir Outlook de novo”.';
+      p.textContent = 'Não saí desta página. Se o Outlook não abriu, permita pop-ups para este site e toque de novo em “Abrir Outlook na Web”.';
       el.areaMensagem.appendChild(p);
     }
 
@@ -1547,11 +1624,6 @@
             texto: r.texto,
             lembretes: r.lembretes
           });
-          if (ehMobile()) {
-            window.setTimeout(function () {
-              tentarAbrirOutlookEvento(r.lembretes);
-            }, 900);
-          }
         } catch (err) {
           console.error(err);
           envioEmAndamento = false;
@@ -1882,6 +1954,7 @@
       el.btnVerLembretes.classList.add('oculto');
       el.painelConfirmar.classList.add('oculto');
       el.painelConfirmar.innerHTML = '';
+      el.app.classList.remove('app--sucesso');
       el.passosGravacao.classList.add('oculto');
       el.passosGravacao.setAttribute('aria-hidden', 'true');
       el.transcricaoAoVivo.classList.add('oculto');
@@ -1948,39 +2021,25 @@
           break;
 
         case ESTADO.SUCESSO: {
+          el.app.classList.add('app--sucesso');
           el.instrucao.classList.add('oculto');
           el.btnPrincipal.classList.add('oculto');
+          el.btnVerLembretes.classList.remove('oculto');
           el.areaMensagem.className = 'area-mensagem area-mensagem--sucesso';
-          const msg = dados.mensagem || '';
+          const msg = dados.mensagem || 'Lembrete guardado! ✅';
           const ouvi = dados.texto || '';
+          const lembretes = dados.lembretes || [];
           let html = '<div class="icone-sucesso" aria-hidden="true">✅</div>';
           html += '<p class="mensagem-principal">' + escapeHtml(msg) + '</p>';
+          if (lembretes.length) {
+            html += '<p class="mensagem-ouvi"><strong>' + escapeHtml(montarResumoLembrete(lembretes[0])) + '</strong></p>';
+          }
+          html += '<p class="mensagem-ouvi">' + escapeHtml(textoProximoPassoSucesso()) + '</p>';
           if (ouvi) {
-            html += '<p class="mensagem-ouvi">Eu ouvi: “' + escapeHtml(ouvi) + '”</p>';
+            html += '<p class="mensagem-ouvi">Você disse: “' + escapeHtml(ouvi) + '”</p>';
           }
           el.areaMensagem.innerHTML = html;
-
-          const btnOutro = document.createElement('button');
-          btnOutro.type = 'button';
-          btnOutro.className = 'btn-secundario';
-          btnOutro.textContent = 'Gravar outro lembrete';
-          btnOutro.addEventListener('click', function () {
-            renderizarEstado(ESTADO.PRONTO, {});
-            el.btnPrincipal.classList.remove('oculto');
-          });
-
-          el.acoesSecundarias.appendChild(btnOutro);
-
-          if (dados.lembretes && dados.lembretes.length) {
-            const btnCal = document.createElement('button');
-            btnCal.type = 'button';
-            btnCal.className = 'btn-secundario';
-            btnCal.textContent = 'Abrir Outlook';
-            btnCal.addEventListener('click', function () {
-              tentarAbrirOutlookEvento(dados.lembretes);
-            });
-            el.acoesSecundarias.appendChild(btnCal);
-          }
+          montarBotoesSucesso(lembretes);
           break;
         }
 
