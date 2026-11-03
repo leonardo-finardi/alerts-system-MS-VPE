@@ -1,18 +1,21 @@
 # Meus Lembretes (PWA)
 
-Uma tela para gravar lembretes por voz (60+).
+Uma tela pensada para **65+**: letras grandes, poucos passos, voz ou teclado.
 
 ## Como funciona
 
-1. Fale o lembrete e a data (“Ligar para Roberto Silva na sexta feira”).
-2. O app tenta abrir o **Outlook** no celular com o evento — toque em **Salvar**. Se o app não existir, você continua nesta página (lembrete já salvo na lista).
-3. **Ver próximos lembretes** lista o que está guardado no celular e permite **excluir**.
+1. **Toque** no botão azul → **fale** o lembrete com dia/hora → **toque de novo** para parar.
+2. **Confirme** na tela “Está certo?” (o que fazer, quando, o que foi entendido).
+3. O lembrete fica guardado no aparelho. No celular, tentamos abrir o **Outlook** — toque em **Salvar** no evento.
+4. **Ver meus lembretes** mostra só o que ainda não passou; **Excluir** pede confirmação.
+
+**Prefere digitar?** Use o link abaixo do botão (importante no iPhone, onde a voz nem sempre funciona).
 
 Sem planilha, sem Apps Script. Dados no `localStorage` do aparelho.
 
 ## Config
 
-Só **`SENHA`** (GitHub secret ou `config.js`). Deixe `API_URL` vazio.
+Só **`SENHA`** (GitHub secret ou `config.js`). Deixe `API_URL` vazio para modo local.
 
 ## Publicar
 
@@ -21,8 +24,10 @@ GitHub Pages via Actions, secret `SENHA` no environment `envs`.
 ## Calendário (Outlook)
 
 - **Mobile:** `ms-outlook://events/new` com `description=` (transcrição) e `title=Alerta - CRM`.
-- **Desktop:** [Outlook na Web (live.com)](https://outlook.live.com/calendar) — compose com `deeplink/compose`, não `ms-outlook://`.
+- **Desktop:** [Outlook na Web (live.com)](https://outlook.live.com/calendar) — compose com `deeplink/compose`; use **Abrir Outlook** (nova aba).
 
-## Microfone
+## Navegador e microfone
 
-Use **Chrome no Android** ou **Safari no iPhone**. Fale devagar; toque de novo para terminar.
+- Use **HTTPS** (GitHub Pages) para o microfone.
+- **Chrome (Android)** ou **Safari (iPhone)** para voz; se não ouvir, **digite**.
+- Fale devagar, perto do aparelho; a página mostra o que está ouvindo enquanto grava.

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#1565C0">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Lembretes">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
@@ -21,8 +22,9 @@
       --cor-verde-texto: #1B5E20;
       --cor-alerta-fundo: #FFF3E0;
       --cor-alerta-texto: #E65100;
-      --fonte-base: clamp(22px, 5vw, 26px);
-      --fonte-grande: clamp(28px, 6.5vw, 34px);
+      --fonte-base: clamp(24px, 5.5vw, 28px);
+      --fonte-grande: clamp(30px, 7vw, 38px);
+      --fonte-titulo: clamp(26px, 6vw, 32px);
       --safe-top: env(safe-area-inset-top, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
       --safe-left: env(safe-area-inset-left, 0px);
@@ -405,6 +407,213 @@
       color: var(--cor-alerta-texto);
       max-width: 36ch;
     }
+
+    .cabecalho {
+      width: 100%;
+      text-align: center;
+      margin-bottom: 0.25rem;
+    }
+
+    .cabecalho__titulo {
+      font-size: var(--fonte-titulo);
+      font-weight: 700;
+      margin: 0;
+      color: var(--cor-azul-escuro);
+    }
+
+    .cabecalho__sub {
+      margin: 0.35rem 0 0;
+      font-size: clamp(18px, 4vw, 22px);
+      color: #455A64;
+    }
+
+    .faixa-ambiente {
+      width: 100%;
+      padding: 0.85rem 1rem;
+      border-radius: 12px;
+      background: #E3F2FD;
+      color: #0D47A1;
+      font-size: clamp(20px, 4.5vw, 24px);
+      font-weight: 600;
+      text-align: left;
+      border: 2px solid #90CAF9;
+    }
+
+    .transcricao-ao-vivo {
+      width: 100%;
+      padding: 1rem 1.125rem;
+      background: #fff;
+      border: 2px dashed #EF5350;
+      border-radius: 14px;
+      font-size: var(--fonte-base);
+      min-height: 3.5rem;
+      text-align: left;
+      color: #37474F;
+    }
+
+    .transcricao-ao-vivo__rotulo {
+      display: block;
+      font-weight: 700;
+      color: var(--cor-vermelho);
+      margin-bottom: 0.35rem;
+      font-size: clamp(20px, 4.5vw, 24px);
+    }
+
+    .passo-gravacao {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      width: 100%;
+    }
+
+    .passo-gravacao span {
+      padding: 0.4rem 0.85rem;
+      border-radius: 999px;
+      background: #ECEFF1;
+      font-size: clamp(18px, 4vw, 22px);
+      font-weight: 600;
+    }
+
+    .passo-gravacao span.ativo {
+      background: #FFEBEE;
+      color: var(--cor-vermelho);
+      border: 2px solid var(--cor-vermelho);
+    }
+
+    .btn-digitar-toggle {
+      width: 100%;
+      padding: 0.9rem 1rem;
+      font-size: var(--fonte-base);
+      font-weight: 600;
+      font-family: inherit;
+      border: 2px dashed var(--cor-azul);
+      background: #fff;
+      color: var(--cor-azul);
+      border-radius: 14px;
+      cursor: pointer;
+      min-height: 56px;
+    }
+
+    .painel-digitar {
+      width: 100%;
+      text-align: left;
+    }
+
+    .painel-digitar textarea {
+      width: 100%;
+      min-height: 120px;
+      font-size: var(--fonte-base);
+      font-family: inherit;
+      padding: 1rem;
+      border-radius: 14px;
+      border: 2px solid #78909C;
+      margin-bottom: 0.75rem;
+    }
+
+    .painel-digitar .btn-secundario { width: 100%; }
+
+    .cartao-confirmacao {
+      width: 100%;
+      text-align: left;
+      background: #fff;
+      border: 2px solid #81C784;
+      border-radius: 16px;
+      padding: 1.125rem 1.25rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .cartao-confirmacao__titulo {
+      margin: 0 0 0.5rem;
+      font-size: clamp(22px, 5vw, 28px);
+      text-align: center;
+      color: var(--cor-texto);
+    }
+
+    .cartao-confirmacao dt {
+      font-weight: 700;
+      color: var(--cor-azul);
+      margin-top: 0.75rem;
+      font-size: clamp(20px, 4.5vw, 24px);
+    }
+
+    .cartao-confirmacao dt:first-child { margin-top: 0; }
+
+    .cartao-confirmacao dd {
+      margin: 0.25rem 0 0;
+      font-size: var(--fonte-base);
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(20px + var(--safe-bottom));
+      transform: translateX(-50%);
+      max-width: min(560px, calc(100vw - 32px));
+      padding: 1rem 1.25rem;
+      border-radius: 14px;
+      font-size: var(--fonte-base);
+      font-weight: 600;
+      z-index: 1000;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+      text-align: center;
+    }
+
+    .toast--ok { background: var(--cor-verde-texto); color: #fff; }
+    .toast--alerta { background: var(--cor-alerta-texto); color: #fff; }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 2000;
+    }
+
+    .modal-caixa {
+      background: #fff;
+      border-radius: 16px;
+      padding: 1.5rem;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .modal-caixa p {
+      font-size: var(--fonte-grande);
+      margin: 0 0 1.25rem;
+    }
+
+    .modal-acoes {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .btn-principal-texto {
+      width: 100%;
+      min-height: 58px;
+      border-radius: 14px;
+      border: none;
+      font-size: var(--fonte-base);
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .btn-principal-texto--sim {
+      background: var(--cor-azul);
+      color: #fff;
+    }
+
+    .btn-principal-texto--nao {
+      background: #fff;
+      color: var(--cor-texto);
+      border: 2px solid #90A4AE;
+    }
   </style>
 </head>
 <body>
@@ -428,9 +637,30 @@
   </section>
 
   <main class="app oculto" id="app" aria-hidden="true">
-    <button type="button" class="btn-topo oculto" id="btnVerLembretes">📋 Ver próximos lembretes</button>
+    <header class="cabecalho">
+      <h1 class="cabecalho__titulo">Meus Lembretes</h1>
+      <p class="cabecalho__sub">Toque, fale, confirme. Simples assim.</p>
+    </header>
+    <div class="faixa-ambiente oculto" id="faixaAmbiente" role="status"></div>
+    <button type="button" class="btn-topo oculto" id="btnVerLembretes">Ver meus lembretes</button>
     <p class="instrucao" id="instrucao"></p>
+    <div class="passo-gravacao oculto" id="passosGravacao" aria-hidden="true">
+      <span id="passo1">1. Toque</span>
+      <span id="passo2">2. Fale</span>
+      <span id="passo3">3. Toque de novo</span>
+    </div>
+    <div class="transcricao-ao-vivo oculto" id="transcricaoAoVivo">
+      <span class="transcricao-ao-vivo__rotulo">Estou ouvindo:</span>
+      <span id="textoAoVivo">…</span>
+    </div>
+    <button type="button" class="btn-digitar-toggle oculto" id="btnDigitarToggle">Prefere digitar? Toque aqui</button>
+    <div class="painel-digitar oculto" id="painelDigitar">
+      <label for="textoDigitado" class="instrucao" style="max-width:none;text-align:left;display:block;margin-bottom:0.5rem;">Escreva o lembrete com dia e hora</label>
+      <textarea id="textoDigitado" placeholder="Ex.: Me lembra amanhã meio-dia de tomar o remédio"></textarea>
+      <button type="button" class="btn-secundario" id="btnEnviarDigitado">Salvar lembrete</button>
+    </div>
     <div id="painelLista" class="painel-lista oculto" aria-live="polite"></div>
+    <div id="painelConfirmar" class="cartao-confirmacao oculto" aria-live="polite"></div>
 
     <div class="modo-teste" id="modoTeste">
       <p class="aviso-teste">Modo teste (sem microfone)</p>
@@ -453,6 +683,14 @@
 
     <div id="acoesSecundarias"></div>
   </main>
+
+  <div class="toast oculto" id="toast" role="status" aria-live="polite"></div>
+  <div class="modal-overlay oculto" id="modalOverlay" aria-modal="true" role="dialog">
+    <div class="modal-caixa">
+      <p id="modalTexto"></p>
+      <div class="modal-acoes" id="modalAcoes"></div>
+    </div>
+  </div>
 
   <script src="config.js"></script>
   <script>
@@ -498,11 +736,12 @@
       ERRO_REDE: 'ERRO_REDE',
       MICROFONE_NEGADO: 'MICROFONE_NEGADO',
       SEM_SUPORTE: 'SEM_SUPORTE',
-      LISTA: 'LISTA'
+      LISTA: 'LISTA',
+      CONFIRMAR: 'CONFIRMAR'
     };
 
     const INSTRUCAO_PADRAO =
-      'Fale o que você quer lembrar e quando. Exemplo: "Ligar para Roberto Silva na sexta feira".';
+      'Toque no botão azul, fale o lembrete com o dia, e toque de novo para parar.';
 
     const params = new URLSearchParams(window.location.search);
     const modoTeste = params.get('teste') === '1';
@@ -523,6 +762,10 @@
     let transcriptaoAtual = '';
     let modoGravacaoLocal = false;
     let paradaReconhecimento = false;
+    let textoPendenteConfirmacao = '';
+    let resultadoPendenteConfirmacao = null;
+    let tentativasReconhecimento = 0;
+    let timerToast = null;
 
     const el = {
       telaSenha: document.getElementById('telaSenha'),
@@ -543,8 +786,132 @@
       textoTeste: document.getElementById('textoTeste'),
       btnEnviarTeste: document.getElementById('btnEnviarTeste'),
       btnVerLembretes: document.getElementById('btnVerLembretes'),
-      painelLista: document.getElementById('painelLista')
+      painelLista: document.getElementById('painelLista'),
+      faixaAmbiente: document.getElementById('faixaAmbiente'),
+      passosGravacao: document.getElementById('passosGravacao'),
+      passo1: document.getElementById('passo1'),
+      passo2: document.getElementById('passo2'),
+      passo3: document.getElementById('passo3'),
+      transcricaoAoVivo: document.getElementById('transcricaoAoVivo'),
+      textoAoVivo: document.getElementById('textoAoVivo'),
+      btnDigitarToggle: document.getElementById('btnDigitarToggle'),
+      painelDigitar: document.getElementById('painelDigitar'),
+      textoDigitado: document.getElementById('textoDigitado'),
+      btnEnviarDigitado: document.getElementById('btnEnviarDigitado'),
+      painelConfirmar: document.getElementById('painelConfirmar'),
+      toast: document.getElementById('toast'),
+      modalOverlay: document.getElementById('modalOverlay'),
+      modalTexto: document.getElementById('modalTexto'),
+      modalAcoes: document.getElementById('modalAcoes')
     };
+
+    function mostrarToast(mensagem, tipo) {
+      if (timerToast) clearTimeout(timerToast);
+      el.toast.textContent = mensagem;
+      el.toast.className = 'toast toast--' + (tipo === 'ok' ? 'ok' : 'alerta');
+      el.toast.classList.remove('oculto');
+      timerToast = setTimeout(function () {
+        el.toast.classList.add('oculto');
+      }, 4200);
+    }
+
+    function mostrarModalConfirmacao(texto, aoSim, aoNao) {
+      el.modalTexto.textContent = texto;
+      el.modalAcoes.innerHTML = '';
+      const btnSim = document.createElement('button');
+      btnSim.type = 'button';
+      btnSim.className = 'btn-principal-texto btn-principal-texto--sim';
+      btnSim.textContent = 'Sim, excluir';
+      btnSim.addEventListener('click', function () {
+        el.modalOverlay.classList.add('oculto');
+        aoSim();
+      });
+      const btnNao = document.createElement('button');
+      btnNao.type = 'button';
+      btnNao.className = 'btn-principal-texto btn-principal-texto--nao';
+      btnNao.textContent = 'Não, voltar';
+      btnNao.addEventListener('click', function () {
+        el.modalOverlay.classList.add('oculto');
+        if (aoNao) aoNao();
+      });
+      el.modalAcoes.appendChild(btnSim);
+      el.modalAcoes.appendChild(btnNao);
+      el.modalOverlay.classList.remove('oculto');
+    }
+
+    function contextoSeguro() {
+      return window.isSecureContext || location.protocol === 'https:' || location.hostname === 'localhost';
+    }
+
+    function verificarAmbiente() {
+      const avisos = [];
+      if (!contextoSeguro()) {
+        avisos.push('Use este site com internet segura (HTTPS) para o microfone funcionar.');
+      }
+      if (!apiAtiva() && !reconhecimentoDisponivel() && !modoTeste) {
+        avisos.push('Neste aparelho, use a opção “Prefere digitar?” abaixo.');
+      }
+      if (ehIOS() && !reconhecimentoDisponivel()) {
+        avisos.push('No iPhone, digitar costuma ser mais confiável que falar.');
+      }
+      if (!avisos.length) {
+        el.faixaAmbiente.classList.add('oculto');
+        return;
+      }
+      el.faixaAmbiente.textContent = avisos.join(' ');
+      el.faixaAmbiente.classList.remove('oculto');
+    }
+
+    function atualizarPassoGravacao(passo) {
+      el.passo1.classList.toggle('ativo', passo === 1);
+      el.passo2.classList.toggle('ativo', passo === 2);
+      el.passo3.classList.toggle('ativo', passo === 3);
+    }
+
+    function atualizarTranscricaoAoVivo(texto) {
+      if (!texto) {
+        el.textoAoVivo.textContent = '…';
+        return;
+      }
+      el.textoAoVivo.textContent = texto;
+    }
+
+    function montarMensagemOk(lembretes) {
+      const partes = lembretes.map(function (l) {
+        let s = l.tarefa.charAt(0).toLowerCase() + l.tarefa.slice(1);
+        s += ' na ' + dataPorExtenso(l.data);
+        if (l.hora) s += ', às ' + l.hora;
+        return s;
+      });
+      let fim = ehMobile()
+        ? ' Toque em “Abrir Outlook” e depois em Salvar.'
+        : ' Toque em “Abrir Outlook” (abre em outra aba).';
+      return 'Anotado! ✅ ' + partes.join('; e de ') + fim;
+    }
+
+    function prepararConfirmacao(texto) {
+      textoPendenteConfirmacao = texto;
+      const r = interpretarLocal(texto);
+      resultadoPendenteConfirmacao = r;
+      if (!r.ok) {
+        renderizarEstado(ESTADO.ERRO_BACKEND, {
+          mensagem: r.mensagem,
+          texto: r.texto || texto,
+          permitirDigitar: true
+        });
+        return;
+      }
+      renderizarEstado(ESTADO.CONFIRMAR, { resultado: r });
+    }
+
+    function confirmarESalvarLembrete() {
+      const r = resultadoPendenteConfirmacao;
+      if (!r || !r.ok) {
+        renderizarEstado(ESTADO.PRONTO, {});
+        return;
+      }
+      processarTextoLocalConfirmado(r);
+    }
 
     function senhaConfigurada() {
       return !!(CONFIG.SENHA && CONFIG.SENHA !== 'COLOCAR_SENHA_AQUI');
@@ -905,17 +1272,6 @@
       return DIAS_EXT[dt.getDay()] + ', ' + p[2] + ' de ' + MESES_EXT[p[1] - 1];
     }
 
-    function montarMensagemOk(lembretes) {
-      const partes = lembretes.map(function (l) {
-        let s = l.tarefa.charAt(0).toLowerCase() + l.tarefa.slice(1);
-        s += ' na ' + dataPorExtenso(l.data);
-        if (l.hora) s += ', às ' + l.hora;
-        return s;
-      });
-      return 'Anotado! ✅ ' + partes.join('; e de ') +
-        '. Vou tentar abrir o Outlook no celular — toque em Salvar no evento.';
-    }
-
     function interpretarLocal(texto) {
       const bruto = String(texto || '').trim();
       if (!bruto) {
@@ -1133,9 +1489,16 @@
     }
 
     function excluirLembrete(id) {
-      const lista = carregarTodosLembretes().filter(function (l) { return l.id !== id; });
-      localStorage.setItem(CHAVE_LEMBRETES, JSON.stringify(lista));
-      renderizarListaLembretes();
+      mostrarModalConfirmacao('Quer mesmo apagar este lembrete? Não dá para desfazer.', function () {
+        const lista = carregarTodosLembretes().filter(function (l) { return l.id !== id; });
+        try {
+          localStorage.setItem(CHAVE_LEMBRETES, JSON.stringify(lista));
+        } catch (e) {
+          console.error(e);
+        }
+        mostrarToast('Lembrete apagado.', 'ok');
+        renderizarListaLembretes();
+      });
     }
 
     function renderizarListaLembretes() {
@@ -1168,34 +1531,34 @@
       }
     }
 
-    function processarTextoLocal(texto) {
+    function processarTextoLocalConfirmado(r) {
       if (envioEmAndamento) return;
       envioEmAndamento = true;
       renderizarEstado(ESTADO.ENVIANDO, {});
       window.setTimeout(function () {
         try {
-          const r = interpretarLocal(texto);
           envioEmAndamento = false;
-          if (r.ok) {
-            salvarLembretesLocal(r.lembretes);
-            renderizarEstado(ESTADO.SUCESSO, {
-              mensagem: r.mensagem,
-              texto: r.texto,
-              lembretes: r.lembretes
-            });
-            if (ehMobile()) {
-              window.setTimeout(function () {
-                tentarAbrirOutlookEvento(r.lembretes);
-              }, 900);
-            }
-          } else {
-            renderizarEstado(ESTADO.ERRO_BACKEND, { mensagem: r.mensagem, texto: r.texto || '' });
+          salvarLembretesLocal(r.lembretes);
+          textoPendenteConfirmacao = '';
+          resultadoPendenteConfirmacao = null;
+          mostrarToast('Lembrete guardado!', 'ok');
+          renderizarEstado(ESTADO.SUCESSO, {
+            mensagem: r.mensagem,
+            texto: r.texto,
+            lembretes: r.lembretes
+          });
+          if (ehMobile()) {
+            window.setTimeout(function () {
+              tentarAbrirOutlookEvento(r.lembretes);
+            }, 900);
           }
         } catch (err) {
           console.error(err);
           envioEmAndamento = false;
           renderizarEstado(ESTADO.ERRO_BACKEND, {
-            mensagem: 'Não consegui anotar. Tente falar de novo, bem devagar.'
+            mensagem: 'Não consegui guardar. Tente de novo.',
+            permitirDigitar: true,
+            texto: r.texto || ''
           });
         }
       }, 400);
@@ -1205,7 +1568,7 @@
       if (apiAtiva()) {
         return enviar({ token: cfg('TOKEN', ''), texto: texto });
       }
-      processarTextoLocal(texto);
+      prepararConfirmacao(texto);
     }
 
     function finalizarGravacaoLocal() {
@@ -1227,12 +1590,12 @@
         });
         return;
       }
-      processarTextoLocal(texto);
+      prepararConfirmacao(texto);
     }
 
     async function enviar(payload) {
       if (!apiAtiva()) {
-        if (payload.texto) processarTextoLocal(payload.texto);
+        if (payload.texto) prepararConfirmacao(payload.texto);
         return;
       }
       if (envioEmAndamento) return;
@@ -1384,8 +1747,10 @@
 
       transcriptaoAtual = '';
       paradaReconhecimento = false;
+      tentativasReconhecimento = 0;
       modoGravacaoLocal = true;
       mediaRecorder = null;
+      atualizarTranscricaoAoVivo('');
 
       reconhecimento = new SpeechRecognition();
       reconhecimento.lang = 'pt-BR';
@@ -1398,11 +1763,28 @@
           t += ev.results[i][0].transcript;
         }
         transcriptaoAtual = t;
+        atualizarTranscricaoAoVivo(t);
+        atualizarPassoGravacao(2);
       };
 
       reconhecimento.onerror = function (ev) {
-        console.error(ev.error || ev);
-        if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
+        const cod = ev.error || '';
+        console.error(cod || ev);
+        if (cod === 'no-speech') {
+          atualizarTranscricaoAoVivo('Fale agora, devagar e perto do aparelho…');
+          return;
+        }
+        if ((cod === 'network' || cod === 'aborted') && modoGravacaoLocal && tentativasReconhecimento < 3) {
+          tentativasReconhecimento++;
+          mostrarToast('Conexão oscilou. Continuando a ouvir…', 'alerta');
+          window.setTimeout(function () {
+            if (modoGravacaoLocal && reconhecimento) {
+              try { reconhecimento.start(); } catch (err) { console.error(err); }
+            }
+          }, 400);
+          return;
+        }
+        if (cod === 'not-allowed' || cod === 'service-not-allowed') {
           paradaReconhecimento = true;
           modoGravacaoLocal = false;
           reconhecimento = null;
@@ -1442,6 +1824,7 @@
         try { navigator.vibrate(80); } catch (_) { /* ignore */ }
       }
 
+      atualizarPassoGravacao(1);
       renderizarEstado(ESTADO.GRAVANDO, {});
 
       timerInterval = setInterval(function () {
@@ -1459,6 +1842,7 @@
 
     function pararGravacao() {
       if (modoGravacaoLocal && reconhecimento) {
+        atualizarPassoGravacao(3);
         paradaReconhecimento = true;
         try {
           reconhecimento.stop();
@@ -1496,12 +1880,29 @@
       el.spinner.classList.add('oculto');
       el.painelLista.classList.add('oculto');
       el.btnVerLembretes.classList.add('oculto');
+      el.painelConfirmar.classList.add('oculto');
+      el.painelConfirmar.innerHTML = '';
+      el.passosGravacao.classList.add('oculto');
+      el.passosGravacao.setAttribute('aria-hidden', 'true');
+      el.transcricaoAoVivo.classList.add('oculto');
+      if (!dados.manterPainelDigitar) {
+        el.painelDigitar.classList.add('oculto');
+      }
+      if (!dados.manterPainelDigitar && estado !== ESTADO.PRONTO) {
+        el.btnDigitarToggle.classList.add('oculto');
+      }
 
       switch (estado) {
         case ESTADO.PRONTO:
           el.instrucao.textContent = INSTRUCAO_PADRAO;
           el.instrucao.classList.remove('oculto');
           el.btnVerLembretes.classList.remove('oculto');
+          if (!modoTeste) {
+            el.btnDigitarToggle.classList.remove('oculto');
+          }
+          if (dados.manterPainelDigitar) {
+            el.painelDigitar.classList.remove('oculto');
+          }
           if (dados.avisoCurto) {
             el.areaMensagem.className = 'area-mensagem area-mensagem--alerta';
             el.areaMensagem.innerHTML =
@@ -1519,6 +1920,11 @@
 
         case ESTADO.GRAVANDO:
           el.instrucao.classList.add('oculto');
+          el.passosGravacao.classList.remove('oculto');
+          el.passosGravacao.setAttribute('aria-hidden', 'false');
+          el.transcricaoAoVivo.classList.remove('oculto');
+          el.btnDigitarToggle.classList.add('oculto');
+          el.painelDigitar.classList.add('oculto');
           el.cronometro.classList.remove('oculto');
           el.cronometro.textContent = '0:00';
           el.btnPrincipal.classList.add('btn-principal--gravando');
@@ -1578,6 +1984,37 @@
           break;
         }
 
+        case ESTADO.CONFIRMAR: {
+          const r = dados.resultado;
+          if (!r || !r.ok || !r.lembretes.length) {
+            renderizarEstado(ESTADO.PRONTO, {});
+            break;
+          }
+          const l = r.lembretes[0];
+          el.instrucao.classList.add('oculto');
+          el.btnPrincipal.classList.add('oculto');
+          el.areaMensagem.innerHTML = '';
+          el.painelConfirmar.classList.remove('oculto');
+          const horaTxt = l.hora ? l.hora : '9h (se não falou horário)';
+          el.painelConfirmar.innerHTML =
+            '<h2 class="cartao-confirmacao__titulo">Está certo?</h2>' +
+            '<dl>' +
+            '<dt>O que fazer</dt><dd>' + escapeHtml(l.tarefa) + '</dd>' +
+            '<dt>Quando</dt><dd>' + escapeHtml(dataPorExtenso(l.data)) + ' · ' + escapeHtml(horaTxt) + '</dd>' +
+            '<dt>Você disse</dt><dd>“' + escapeHtml(l.texto) + '”</dd>' +
+            '</dl>' +
+            '<button type="button" class="btn-secundario" id="btnConfirmarSim" style="width:100%;margin-top:1rem;font-size:1.15rem;padding:1rem;">Sim, está certo</button>' +
+            '<button type="button" class="btn-secundario" id="btnConfirmarNao" style="width:100%;margin-top:0.5rem;">Não — gravar ou digitar de novo</button>';
+          document.getElementById('btnConfirmarSim').addEventListener('click', confirmarESalvarLembrete);
+          document.getElementById('btnConfirmarNao').addEventListener('click', function () {
+            el.textoDigitado.value = textoPendenteConfirmacao || l.texto || '';
+            renderizarEstado(ESTADO.PRONTO, { manterPainelDigitar: true });
+            el.painelDigitar.classList.remove('oculto');
+            el.textoDigitado.focus();
+          });
+          break;
+        }
+
         case ESTADO.LISTA:
           el.instrucao.classList.add('oculto');
           el.btnPrincipal.classList.add('oculto');
@@ -1592,10 +2029,23 @@
           el.areaMensagem.className = 'area-mensagem area-mensagem--alerta';
           el.areaMensagem.innerHTML =
             '<p class="mensagem-principal">' + escapeHtml(dados.mensagem || 'Não deu desta vez.') + '</p>';
+          if (dados.texto) {
+            el.areaMensagem.innerHTML +=
+              '<p class="mensagem-ouvi">Texto: “' + escapeHtml(dados.texto) + '”</p>';
+          }
           adicionarBotaoSecundario('Tentar de novo', function () {
             renderizarEstado(ESTADO.PRONTO, {});
             el.btnPrincipal.classList.remove('oculto');
           });
+          if (dados.permitirDigitar) {
+            adicionarBotaoSecundario('Corrigir digitando', function () {
+              el.textoDigitado.value = dados.texto || textoPendenteConfirmacao || '';
+              renderizarEstado(ESTADO.PRONTO, { manterPainelDigitar: true });
+              el.painelDigitar.classList.remove('oculto');
+              el.btnPrincipal.classList.remove('oculto');
+              el.textoDigitado.focus();
+            });
+          }
           break;
 
         case ESTADO.ERRO_REDE:
@@ -1624,14 +2074,29 @@
             renderizarEstado(ESTADO.PRONTO, {});
             el.btnPrincipal.classList.remove('oculto');
           });
+          adicionarBotaoSecundario('Digitar em vez de falar', function () {
+            renderizarEstado(ESTADO.PRONTO, { manterPainelDigitar: true });
+            el.painelDigitar.classList.remove('oculto');
+            el.textoDigitado.focus();
+          });
           break;
 
         case ESTADO.SEM_SUPORTE:
-          el.instrucao.classList.add('oculto');
-          el.btnPrincipal.classList.add('oculto');
+          el.instrucao.textContent = 'Use o campo abaixo para escrever seu lembrete.';
+          el.instrucao.classList.remove('oculto');
+          el.btnDigitarToggle.classList.add('oculto');
+          el.painelDigitar.classList.remove('oculto');
           el.areaMensagem.className = 'area-mensagem area-mensagem--alerta';
           el.areaMensagem.innerHTML =
-            '<p class="mensagem-principal">Este navegador não consegue gravar. Abra este link no Chrome (Android) ou Safari (iPhone).</p>';
+            '<p class="mensagem-principal">Aqui não dá para usar a voz. Digite o lembrete com dia e hora.</p>';
+          if (reconhecimentoDisponivel()) {
+            el.btnPrincipal.classList.remove('oculto');
+            adicionarBotaoSecundario('Tentar gravar de novo', function () {
+              renderizarEstado(ESTADO.PRONTO, {});
+            });
+          } else {
+            el.btnPrincipal.classList.add('oculto');
+          }
           break;
 
         default:
@@ -1683,6 +2148,7 @@
         if (!apiAtiva()) {
           if (!reconhecimentoDisponivel()) {
             renderizarEstado(ESTADO.SEM_SUPORTE, {});
+            el.textoDigitado.focus();
             return;
           }
           iniciarGravacaoLocal();
@@ -1701,10 +2167,32 @@
     function iniciarApp() {
       if (appIniciado) return;
       appIniciado = true;
+      verificarAmbiente();
       el.btnPrincipal.addEventListener('click', aoClicarPrincipal);
       el.btnVerLembretes.addEventListener('click', function () {
         if (estadoAtual === ESTADO.ENVIANDO || estadoAtual === ESTADO.GRAVANDO) return;
         renderizarEstado(ESTADO.LISTA, {});
+      });
+      el.btnDigitarToggle.addEventListener('click', function () {
+        const aberto = !el.painelDigitar.classList.contains('oculto');
+        if (aberto) {
+          el.painelDigitar.classList.add('oculto');
+          el.btnDigitarToggle.textContent = 'Prefere digitar? Toque aqui';
+        } else {
+          el.painelDigitar.classList.remove('oculto');
+          el.btnDigitarToggle.textContent = 'Fechar digitação';
+          el.textoDigitado.focus();
+        }
+      });
+      el.btnEnviarDigitado.addEventListener('click', function () {
+        if (estadoAtual === ESTADO.ENVIANDO || estadoAtual === ESTADO.GRAVANDO) return;
+        const texto = (el.textoDigitado.value || '').trim();
+        if (!texto) {
+          mostrarToast('Escreva o lembrete com o dia.', 'alerta');
+          el.textoDigitado.focus();
+          return;
+        }
+        processarEntrada(texto);
       });
 
       if (modoTeste) {
@@ -1720,17 +2208,13 @@
               '<p class="mensagem-principal">Digite uma frase de lembrete no campo acima.</p>';
             return;
           }
-          processarEntrada(texto);
+          prepararConfirmacao(texto);
         });
       } else if (!apiAtiva() && !reconhecimentoDisponivel()) {
         renderizarEstado(ESTADO.SEM_SUPORTE, {});
       } else if (apiAtiva() && !navegadorSuportaGravacao()) {
         renderizarEstado(ESTADO.SEM_SUPORTE, {});
       } else {
-        if (!apiAtiva()) {
-          el.instrucao.textContent =
-            'Fale o lembrete e o dia. Exemplo: “Ligar para Roberto Silva na sexta feira”. Tentamos abrir o Outlook para salvar.';
-        }
         renderizarEstado(ESTADO.PRONTO, {});
       }
     }
